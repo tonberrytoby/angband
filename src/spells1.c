@@ -615,6 +615,7 @@ void take_hit(int dam, const char *kb_str)
 		msgt(MSG_HITPOINT_WARN, "*** LOW HITPOINT WARNING! ***");
 		message_flush();
 	}
+        msg("You took %i ponts of damage,and now have %i HP",dam,p_ptr->chp);
 }
 
 

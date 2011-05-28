@@ -920,6 +920,8 @@ void display_monlist(void)
 		else
 			attr = TERM_WHITE;
 
+                attr = monster_list_color(order[i]);
+
 		/* Build the monster name */
 		if (list[order[i]].los == 1)
 			strnfmt(buf, sizeof(buf), (list[order[i]].los_asleep ==
@@ -994,6 +996,7 @@ void display_monlist(void)
 			attr = TERM_RED;
 		else
 			attr = TERM_WHITE;
+                attr = monster_list_color(order[i]);
 
 		/* Build the monster name */
 		if (out_of_los == 1)

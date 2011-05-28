@@ -35,25 +35,25 @@ M:1:w
 M:2:w
 
 # MSG_FLEE
-M:3:w
+M:3:G
 
 # MSG_DROP (sound only)
 M:4:w
 
 # MSG_KILL
-M:5:w
+M:5:b
 
 # MSG_LEVEL
-M:6:w
+M:6:g
 
 # MSG_DEATH
-M:7:w
+M:7:g
 
 # MSG_STUDY
 M:8:w
 
 # MSG_TELEPORT (sound only)
-M:9:w
+M:9:t
 
 # MSG_SHOOT (sound only)
 M:10:w
@@ -122,7 +122,7 @@ M:30:w
 M:31:w
 
 # MSG_DESTROY
-M:32:w
+M:32:y
 
 # MSG_MON_HIT
 M:33:w
@@ -182,76 +182,76 @@ M:50:w
 M:51:w
 
 # MSG_RECOVER
-M:52:w
+M:52:g
 
 # MSG_BLIND
-M:53:w
+M:53:r
 
 # MSG_CONFUSED
-M:54:w
+M:54:r
 
 # MSG_POISONED
-M:55:w
+M:55:r
 
 # MSG_AFRAID
 M:56:o
 
 # MSG_PARALYZED
-M:57:w
+M:57:r
 
 # MSG_DRUGGED
-M:58:w
+M:58:r
 
 # MSG_SPEED
-M:59:w
+M:59:g
 
 # MSG_SLOW
-M:60:w
+M:60:r
 
 # MSG_SHIELD
-M:61:w
+M:61:g
 
 # MSG_BLESSED
-M:62:w
+M:62:g
 
 # MSG_HERO
-M:63:w
+M:63:g
 
 # MSG_BERSERK
-M:64:w
+M:64:g
 
 # MSG_PROT_EVIL
-M:65:w
+M:65:g
 
 # MSG_INVULN
-M:66:w
+M:66:g
 
 # MSG_SEE_INVIS
-M:67:w
+M:67:g
 
 # MSG_INFRARED
-M:68:w
+M:68:g
 
 # MSG_RES_ACID
-M:69:w
+M:69:b
 
 # MSG_RES_ELEC
-M:70:w
+M:70:b
 
 # MSG_RES_FIRE
-M:71:w
+M:71:b
 
 # MSG_RES_COLD
-M:72:w
+M:72:b
 
 # MSG_RES_POIS
-M:73:w
+M:73:b
 
 # MSG_STUN
-M:74:w
+M:74:r
 
 # MSG_CUT
-M:75:w
+M:75:r
 
 # MSG_STAIRS_UP
 M:76:w
@@ -357,46 +357,46 @@ M:108:w
 M:109:w
 
 # MSG_SUM_MONSTER
-M:110:w
+M:110:P
 
 # MSG_SUM_ANGEL
-M:111:w
+M:111:P
 
 # MSG_SUM_UNDEAD
-M:112:w
+M:112:P
 
 # MSG_SUM_ANIMAL
-M:113:w
+M:113:P
 
 # MSG_SUM_SPIDER
-M:114:w
+M:114:P
 
 # MSG_SUM_HOUND
-M:115:w
+M:115:V
 
 # MSG_SUM_HYDRA
-M:116:w
+M:116:P
 
 # MSG_SUM_DEMON
-M:117:w
+M:117:V
 
 # MSG_SUM_DRAGON
-M:118:w
+M:118:V
 
 # MSG_SUM_HI_UNDEAD
-M:119:w
+M:119:V
 
 # MSG_SUM_HI_DRAGON
-M:120:w
+M:120:V
 
 # MSG_SUM_HI_DEMON
-M:121:w
+M:121:V
 
 # MSG_SUM_WRAITH
-M:122:w
+M:122:V
 
 # MSG_SUM_UNIQUE
-M:123:w
+M:123:V
 
 # MSG_WIELD
 M:124:w
@@ -405,13 +405,13 @@ M:124:w
 M:125:w
 
 # MSG_PSEUDOID
-M:126:w
+M:126:v
 
 # MSG_HUNGRY
-M:127:w
+M:127:m
 
 # MSG_NOTICE
-M:128:w
+M:128:m
 
 # MSG_AMBIENT_DAY (sound only)
 M:129:w
@@ -435,7 +435,7 @@ M:134:w
 M:135:w
 
 # MSG_CREATE_TRAP
-M:136:w
+M:136:R
 
 # MSG_SHRIEK
 M:137:w
@@ -471,7 +471,7 @@ M:146:w
 M:147:w
 
 # MSG_DRAIN_STAT
-M:148:w
+M:148:R
 
 # MSG_MULTIPLY (sound only)
 M:149:w

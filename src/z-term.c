@@ -1973,6 +1973,7 @@ errr Term_keypress(keycode_t k, byte mods)
 	/* Circular queue, handle wrap */
 	if (Term->key_head == Term->key_size) Term->key_head = 0;
 
+        msgt(MSG_GENERIC, "Keypress  \"%c\" \"%s\" ",k, keycode_find_desc(k));
 	/* Success (unless overflow) */
 	if (Term->key_head != Term->key_tail) return (0);
 

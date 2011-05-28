@@ -1682,7 +1682,7 @@ static void o_xtra_act(struct keypress ch, int oid)
 	if (ch.code == '}') {
 		if (k->note)
 			remove_autoinscription(oid);
-	} else if (ch.code == '{') {
+	} else if (ch.code == '7') {
 		/* Inscribe */
 		char note_text[80] = "";
 

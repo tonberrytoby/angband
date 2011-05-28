@@ -2060,9 +2060,9 @@ static void describe_monster_movement(int r_idx, const monster_lore *l_ptr)
 	/* Speed */
 	if (r_ptr->speed > 110)
 	{
-		if (r_ptr->speed > 130) text_out_c(TERM_GREEN, " incredibly");
-		else if (r_ptr->speed > 120) text_out_c(TERM_GREEN, " very");
-		text_out_c(TERM_GREEN, " quickly");
+		if (r_ptr->speed > 130) text_out_c(TERM_RED, " incredibly");
+		else if (r_ptr->speed > 120) text_out_c(TERM_ORANGE, " very");
+		text_out_c(TERM_YELLOW, " quickly");
 	}
 	else if (r_ptr->speed < 110)
 	{
@@ -2075,6 +2075,29 @@ static void describe_monster_movement(int r_idx, const monster_lore *l_ptr)
 		text_out(" at ");
 		text_out_c(TERM_GREEN, "normal speed");
 	}
+
+        
+        /* speed advantage */
+        {
+        int rel_speed = extract_energy[r_ptr->speed ]*100 /extract_energy[p_ptr->state.speed];
+        text_out("(");
+        if (rel_speed <= 100)
+        {        
+               text_out_c(TERM_GREEN, "%d%%", rel_speed);
+        }
+        else if (rel_speed < 200) 
+        {        
+               text_out_c(TERM_YELLOW, "%d%%", rel_speed);
+        }
+        else  
+        {        
+               text_out_c(TERM_RED, "%d%%", rel_speed);
+        }
+        text_out(" of your current speed.)");
+        }
+
+
+
 
 	/* The code above includes "attack speed" */
 	if (rf_has(f, RF_NEVER_MOVE)) {
@@ -2437,3 +2460,84 @@ bool match_monster_bases(monster_base *base, ...)
 
 	return ok;
 }
+
+/* return the color for diplay in the monster list */
+byte monster_list_color(const int r_idx){
+        /* lots of stuff copied from describe_monster not shure if we need this */
+        monster_lore lore;
+        bitflag f[RF_SIZE];
+        int melee_colors[RBE_MAX], spell_colors[RSF_MAX];
+
+       /* Get the race and lore */
+       const monster_race *r_ptr = &r_info[r_idx];
+       monster_lore *l_ptr = &l_list[r_idx];
+
+       /* Determine the special attack colors */
+       get_attack_colors(melee_colors, spell_colors);
+
+       /* Hack -- create a copy of the monster-memory */
+       COPY(&lore, l_ptr, monster_lore);
+
+       /* Assume some "obvious" flags */
+        flags_set(lore.flags, RF_SIZE, RF_OBVIOUS_MASK, FLAG_END);
+
+       /* Killing a monster reveals some properties */
+       if (lore.tkills)
+       {
+               /* Know "race" flags */
+                flags_set(lore.flags, RF_SIZE, RF_RACE_MASK, FLAG_END);
+
+               /* Know "forced" flags */
+                rf_on(lore.flags, RF_FORCE_DEPTH);
+       }
+       /* Now get the known monster flags */
+       monster_flags_known(r_ptr, &lore, f);
+
+
+
+        /* Uniques are purple */
+        if (rf_has(r_ptr->flags, RF_UNIQUE)) return TERM_VIOLET;
+
+        /* Summoners are RED */
+        if (rsf_has(l_ptr->spell_flags, RSF_S_KIN)) return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_UNIQUE))  return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_HI_DEMON)) return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_HI_UNDEAD)) return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_HI_DRAGON)) return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_WRAITH))   return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_HOUND))   return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_UNIQUE))   return TERM_RED;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_MONSTERS)) return TERM_RED;
+
+        /* Weak Summoners are orange  */
+        if (rsf_has(l_ptr->spell_flags, RSF_S_MONSTER)) return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_ANGEL))   return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_ANIMAL))  return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_SPIDER))  return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_HYDRA))   return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_DEMON))   return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_UNDEAD))  return TERM_ORANGE;
+        if (rsf_has(l_ptr->spell_flags, RSF_S_DRAGON))  return TERM_ORANGE;
+        if (rf_has(f, RF_MULTIPLY))   return TERM_ORANGE;
+
+
+
+        /* stationry monsters */
+       if (rf_has(f, RF_NEVER_MOVE)) return TERM_L_BLUE;
+
+        /* Speedy guys are yellow */
+        if (extract_energy[r_ptr->speed]*10/extract_energy[p_ptr->state.speed] >10 ) return TERM_YELLOW;
+
+        /* Unresisted distance attacks should be yellow but that is hard */
+
+        /* If you haven't killed it before it is blue */
+        if (!l_ptr->pkills) return TERM_BLUE;
+
+
+        /* Some Monsters are tasty */
+        if (rf_has(f, RF_DROP_GOOD)) return TERM_GREEN;
+        if (rf_has(f, RF_DROP_GREAT)) return TERM_GREEN;
+
+        return TERM_WHITE;
+}
+

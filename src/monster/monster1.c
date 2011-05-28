@@ -2081,7 +2081,11 @@ static void describe_monster_movement(int r_idx, const monster_lore *l_ptr)
         {
         int rel_speed = extract_energy[r_ptr->speed ]*100 /extract_energy[p_ptr->state.speed];
         text_out("(");
-        if (rel_speed <= 100)
+        if (rel_speed <= 50)
+        {        
+               text_out_c(TERM_L_BLUE, "%d%%", rel_speed);
+        }
+        else if (rel_speed <= 100)
         {        
                text_out_c(TERM_GREEN, "%d%%", rel_speed);
         }
@@ -2102,7 +2106,7 @@ static void describe_monster_movement(int r_idx, const monster_lore *l_ptr)
 	/* The code above includes "attack speed" */
 	if (rf_has(f, RF_NEVER_MOVE)) {
 		text_out(", but ");
-		text_out_c(TERM_L_GREEN, "does not deign to chase intruders");
+		text_out_c(TERM_L_BLUE, "does not deign to chase intruders");
 	}
 
 	/* End this sentence */

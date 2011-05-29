@@ -476,16 +476,16 @@ void do_cmd_pref(void)
 static const char *obj_feeling_text[] =
 {
 	"it looks like any other level.",
-	"you sense an object of wondrous power ...",
-	"you have a superb feeling....",
-	"you have an excellent feeling...",
-	"you have a very good feeling...",
-	"you have a good feeling...",
-	"you feel a little lucky.",
-	"you are unsure if it will be worthwhile.",
-	"you think it might not be up to much.",
-	"you feel it may be rather dull.",
-	"you feel terribly bored.",
+	"you sense an object of wondrous power ...(a)",
+	"you have a superb feeling....(9)",
+	"you have an excellent feeling...(8)",
+	"you have a very good feeling...(7)",
+	"you have a good feeling...(6)",
+	"you feel a little lucky.(5)",
+	"you are unsure if it will be worthwhile.(4)",
+	"you think it might not be up to much.(3)",
+	"you feel it may be rather dull.(2)",
+	"you feel terribly bored.(1)",
 };
 
 /*
@@ -494,15 +494,15 @@ static const char *obj_feeling_text[] =
 static const char *mon_feeling_text[] =
 {
     "You are still uncertain about this place,",
-    "Premonitions of death appall you! This place is murderous,",
-    "This place seems terribly dangerous,",
-    "You sense something really nasty about this place,",
-    "You sense something bad about this place,",
-    "You feel nervous about this place,",
-    "You feel uneasy about this place,",
-    "You feel faintly uneasy about this place,",
-    "This place seems reasonably safe,",
-    "This seems a quiet, peaceful place,"
+    "Premonitions of death appall you! This place is murderous,(9)",
+    "This place seems terribly dangerous,(8)",
+    "You sense something really nasty about this place,(7)",
+    "You sense something bad about this place,(6)",
+    "You feel nervous about this place,(5)",
+    "You feel uneasy about this place,(4)",
+    "You feel faintly uneasy about this place,(3)",
+    "This place seems reasonably safe,(2)",
+    "This seems a quiet, peaceful place,(1)"
 };
 
 

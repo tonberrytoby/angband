@@ -491,7 +491,7 @@ void place_object(struct cave *c, int y, int x, int level, bool good,
 /**
  * Place a random amount of gold at (x, y).
  */
-void place_gold(struct cave *c, int y, int x, int level) {
+void place_gold(struct cave *c, int y, int x, int level, byte origin) {
 	object_type *i_ptr;
 	object_type object_type_body;
 
@@ -502,6 +502,10 @@ void place_gold(struct cave *c, int y, int x, int level) {
 	i_ptr = &object_type_body;
 	object_wipe(i_ptr);
 	make_gold(i_ptr, level, SV_GOLD_ANY);
+
+	i_ptr->origin = origin;
+	i_ptr->origin_depth = level;
+
 	floor_carry(c, y, x, i_ptr);
 }
 
@@ -651,7 +655,7 @@ static bool alloc_object(struct cave *c, int set, int typ, int depth,
 	switch (typ) {
 		case TYP_RUBBLE: place_rubble(c, y, x); break;
 		case TYP_TRAP: place_trap(c, y, x); break;
-		case TYP_GOLD: place_gold(c, y, x, depth); break;
+		case TYP_GOLD: place_gold(c, y, x, depth, origin); break;
 		case TYP_OBJECT: place_object(c, y, x, depth, FALSE, FALSE, origin); break;
 		case TYP_GOOD: place_object(c, y, x, depth, TRUE, FALSE, origin); break;
 		case TYP_GREAT: place_object(c, y, x, depth, TRUE, TRUE, origin); break;
@@ -744,7 +748,7 @@ static void vault_objects(struct cave *c, int y, int x, int depth, int num) {
 			if (randint0(100) < 75)
 				place_object(c, j, k, depth, FALSE, FALSE, ORIGIN_SPECIAL);
 			else
-				place_gold(c, j, k, depth);
+				place_gold(c, j, k, depth, ORIGIN_VAULT);
 
 			/* Placement accomplished */
 			break;
@@ -1759,8 +1763,8 @@ static void build_vault(struct cave *c, int y0, int x0, int ymax, int xmax, cons
 	assert(c);
 
 	/* Place dungeon features and objects */
-	for (t = data, dy = 0; dy < ymax; dy++) {
-		for (dx = 0; dx < xmax; dx++, t++) {
+	for (t = data, dy = 0; dy < ymax && *t; dy++) {
+		for (dx = 0; dx < xmax && *t; dx++, t++) {
 			/* Extract the location */
 			x = x0 - (xmax / 2) + dx;
 			y = y0 - (ymax / 2) + dy;
@@ -1784,8 +1788,7 @@ static void build_vault(struct cave *c, int y0, int x0, int ymax, int xmax, cons
 				case '*': {
 					/* Treasure or a trap */
 					if (randint0(100) < 75)
-						place_object(c, y, x, c->depth, FALSE, FALSE,
-							ORIGIN_VAULT);
+						place_object(c, y, x, c->depth, FALSE, FALSE, ORIGIN_VAULT);
 					else
 						place_trap(c, y, x);
 					break;
@@ -1796,8 +1799,8 @@ static void build_vault(struct cave *c, int y0, int x0, int ymax, int xmax, cons
 
 
 	/* Place dungeon monsters and objects */
-	for (t = data, dy = 0; dy < ymax; dy++) {
-		for (dx = 0; dx < xmax; dx++, t++) {
+	for (t = data, dy = 0; dy < ymax && *t; dy++) {
+		for (dx = 0; dx < xmax && *t; dx++, t++) {
 			/* Extract the grid */
 			x = x0 - (xmax / 2) + dx;
 			y = y0 - (ymax / 2) + dy;
@@ -2983,7 +2986,7 @@ void join_region(struct cave *c, int colors[], int counts[], int color) {
 				n = previous[n];
 			}
 			fix_colors(colors, counts, color2, color, size);
-			return;
+			break;
 		}
 
 		for (i = 0; i < 4; i++) {
@@ -2992,8 +2995,14 @@ void join_region(struct cave *c, int colors[], int counts[], int color) {
 
 			y2 = y + yds[i];
 			x2 = x + xds[i];
+
+			/* make sure we stay inside the boundaries */
 			if (y2 < 0 || y2 >= h) continue;
 			if (x2 < 0 || x2 >= w) continue;
+
+			/* permanent walls and icky walls should not be handled */
+			if (cave_isperm(c, y2, x2)) continue;
+			if (cave_isicky(c, y2, x2)) continue;
 
 			n2 = lab_toi(y2, x2, w);
 			if (previous[n2] >= 0) continue;
@@ -3069,65 +3078,73 @@ bool cavern_gen(struct cave *c, struct player *p) {
 
 	int tries = 0;
 
-	/* If we're too shallow then don't do it */
-	if (c->depth < 15) return FALSE;
+	bool ok = TRUE;
 
-	array_filler(colors, 0, size);
-	array_filler(counts, 0, size);
+	if (c->depth < 15) {
+		/* If we're too shallow then don't do it */
+		ok = FALSE;
 
-	for (tries = 0; tries < MAX_CAVERN_TRIES; tries++) {
-		/* Build a random cavern and mutate it a number of times */
-		init_cavern(c, p, density);
-		for (i = 0; i < times; i++) mutate_cavern(c);
+	} else {
+		/* Start trying to build caverns */
+		array_filler(colors, 0, size);
+		array_filler(counts, 0, size);
+	
+		for (tries = 0; tries < MAX_CAVERN_TRIES; tries++) {
+			/* Build a random cavern and mutate it a number of times */
+			init_cavern(c, p, density);
+			for (i = 0; i < times; i++) mutate_cavern(c);
+	
+			/* If there are enough open squares then we're done */
+			if (open_count(c) >= size / 50) break;
+		}
 
-		/* If there are enough open squares then we're done */
-		if (open_count(c) >= size / 50) break;
+		/* If we couldn't make a big enough cavern then fail */
+		if (tries == MAX_CAVERN_TRIES) ok = FALSE;
 	}
 
-	/* If we couldn't make a big enough cavern then fail */
-	if (tries == MAX_CAVERN_TRIES) return FALSE;
-
-	build_colors(c, colors, counts, FALSE);
-	clear_small_regions(c, colors, counts);
-	join_regions(c, colors, counts);
-
-	/* Place 2-3 down stairs near some walls */
-	alloc_stairs(c, FEAT_MORE, rand_range(1, 3), 3);
-
-	/* Place 1-2 up stairs near some walls */
-	alloc_stairs(c, FEAT_LESS, rand_range(1, 2), 3);
-
-	/* General some rubble, traps and monsters */
-	k = MAX(MIN(c->depth / 3, 10), 2);
-
-	/* Scale number of monsters items by cavern size */
-	k = (2 * k * (h *  w)) / (DUNGEON_HGT * DUNGEON_WID);
-
-	/* Put some rubble in corridors */
-	alloc_objects(c, SET_BOTH, TYP_RUBBLE, randint1(k), c->depth, 0);
-
-	/* Place some traps in the dungeon */
-	alloc_objects(c, SET_BOTH, TYP_TRAP, randint1(k), c->depth, 0);
-
-	/* Determine the character location */
-	new_player_spot(c, p);
-
-	/* Put some monsters in the dungeon */
-	for (i = MIN_M_ALLOC_LEVEL + randint1(8) + k; i > 0; i--)
-		alloc_monster(c, loc(p->px, p->py), 0, TRUE, c->depth);
-
-	/* Put some objects/gold in the dungeon */
-	alloc_objects(c, SET_BOTH, TYP_OBJECT, Rand_normal(6, 3), c->depth,
-		ORIGIN_CAVERN);
-	alloc_objects(c, SET_BOTH, TYP_GOLD, Rand_normal(6, 3), c->depth,
-		ORIGIN_CAVERN);
-	alloc_objects(c, SET_BOTH, TYP_GOOD, randint0(2), c->depth,
-		ORIGIN_CAVERN);
+	if (ok) {
+		build_colors(c, colors, counts, FALSE);
+		clear_small_regions(c, colors, counts);
+		join_regions(c, colors, counts);
+	
+		/* Place 2-3 down stairs near some walls */
+		alloc_stairs(c, FEAT_MORE, rand_range(1, 3), 3);
+	
+		/* Place 1-2 up stairs near some walls */
+		alloc_stairs(c, FEAT_LESS, rand_range(1, 2), 3);
+	
+		/* General some rubble, traps and monsters */
+		k = MAX(MIN(c->depth / 3, 10), 2);
+	
+		/* Scale number of monsters items by cavern size */
+		k = (2 * k * (h *  w)) / (DUNGEON_HGT * DUNGEON_WID);
+	
+		/* Put some rubble in corridors */
+		alloc_objects(c, SET_BOTH, TYP_RUBBLE, randint1(k), c->depth, 0);
+	
+		/* Place some traps in the dungeon */
+		alloc_objects(c, SET_BOTH, TYP_TRAP, randint1(k), c->depth, 0);
+	
+		/* Determine the character location */
+		new_player_spot(c, p);
+	
+		/* Put some monsters in the dungeon */
+		for (i = MIN_M_ALLOC_LEVEL + randint1(8) + k; i > 0; i--)
+			alloc_monster(c, loc(p->px, p->py), 0, TRUE, c->depth);
+	
+		/* Put some objects/gold in the dungeon */
+		alloc_objects(c, SET_BOTH, TYP_OBJECT, Rand_normal(6, 3), c->depth,
+			ORIGIN_CAVERN);
+		alloc_objects(c, SET_BOTH, TYP_GOLD, Rand_normal(6, 3), c->depth,
+			ORIGIN_CAVERN);
+		alloc_objects(c, SET_BOTH, TYP_GOOD, randint0(2), c->depth,
+			ORIGIN_CAVERN);
+	}
 
 	FREE(colors);
 	FREE(counts);
 
-	return TRUE;
+	return ok;
 }
 
 /*
@@ -3340,16 +3357,16 @@ static int calc_mon_feeling(struct cave *c)
 	if (c->depth == 0) return 0;
 
 	/* Check the monster power adjusted for depth */
-	x = c->mon_rating / c->depth;
+	x = c->mon_rating / (c->depth * c->depth);
 
-	if (x > 750000) return 1;
-	if (x > 400000) return 2;
-	if (x > 200000) return 3;
-	if (x > 50000) return 4;
-	if (x > 10000) return 5;
-	if (x > 2500) return 6;
-	if (x > 750) return 7;
-	if (x > 250) return 8;
+	if (x > 7500) return 1;
+	if (x > 5000) return 2;
+	if (x > 2000) return 3;
+	if (x > 1600) return 4;
+	if (x > 800) return 5;
+	if (x > 400) return 6;
+	if (x > 200) return 7;
+	if (x > 100) return 8;
 	return 9;
 }
 

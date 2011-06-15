@@ -6,6 +6,7 @@
 #ifndef SPELLS_H
 #define SPELLS_H
 
+#include "monster/monster.h"
 
 /*
  * Spell types used by project(), and related functions.
@@ -90,13 +91,13 @@ enum
 
 /* spells1.c */
 s16b poly_r_idx(int r_idx);
-void teleport_away(int m_idx, int dis);
+void teleport_away(struct monster *m, int dis);
 void teleport_player(int dis);
 void teleport_player_to(int ny, int nx);
 void teleport_player_level(void);
 int gf_name_to_idx(const char *name);
 const char *gf_idx_to_name(int type);
-void take_hit(int dam, const char *kb_str);
+void take_hit(struct player *p, int dam, const char *kb_str);
 void acid_dam(int dam, const char *kb_str);
 void elec_dam(int dam, const char *kb_str);
 void fire_dam(int dam, const char *kb_str);
@@ -104,11 +105,11 @@ void cold_dam(int dam, const char *kb_str);
 bool res_stat(int stat);
 bool apply_disenchant(int mode);
 bool project(int who, int rad, int y, int x, int dam, int typ, int flg);
-int check_for_resist(int type, bitflag *flags, bool real);
+int check_for_resist(struct player *p, int type, bitflag *flags, bool real);
 bool check_side_immune(int type);
-int inven_damage(int type, int cperc);
-int adjust_dam(int type, int dam, aspect dam_aspect, int resist);
-void monster_learn_resists(int m_idx, int type);
+int inven_damage(struct player *p, int type, int cperc);
+int adjust_dam(struct player *p, int type, int dam, aspect dam_aspect, int resist);
+void monster_learn_resists(struct monster *m, struct player *p, int type);
 
 /* spells2.c */
 extern bool hp_player(int num);
@@ -155,8 +156,6 @@ extern bool mass_banishment(void);
 extern bool probing(void);
 extern void destroy_area(int y1, int x1, int r, bool full);
 extern void earthquake(int cy, int cx, int r);
-extern void light_room(int y1, int x1);
-extern void unlight_room(int y1, int x1);
 extern bool light_area(int dam, int rad);
 extern bool unlight_area(int dam, int rad);
 extern bool fire_ball(int typ, int dir, int dam, int rad);

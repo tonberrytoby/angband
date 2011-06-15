@@ -1547,8 +1547,8 @@ void do_cmd_view_map(void)
  * during the "update_view()" function.  This flag is used to "spread" light
  * or darkness through a room.  This flag is used by the "monster flow code".
  * This flag must always be cleared by any code which sets it, often, this
- * can be optimized by the use of the special "temp_g", "temp_y", "temp_x"
- * arrays (and the special "temp_n" global).  This flag must be very fast.
+ * can be optimized by the use of the special "temp_g" array.  This flag must
+ * be very fast.
  *
  * Note that the "CAVE_MARK" flag is used for many reasons, some of which
  * are strictly for optimization purposes.  The "CAVE_MARK" flag means that
@@ -2419,7 +2419,7 @@ void update_view(void)
 	/* Handle real light */
 	if (radius > 0) ++radius;
 
-	/* Scan monster list and add monster lites */
+	/* Scan monster list and add monster lights */
 	for (k = 1; k < z_info->m_max; k++)
 	{
 		/* Check the k'th monster */
@@ -2429,15 +2429,15 @@ void update_view(void)
 		/* Access the location */
 		int fx = m_ptr->fx;
 		int fy = m_ptr->fy;
-		
+
 		bool in_los = los(p_ptr->py, p_ptr->px, fy, fx);
 
 		/* Skip dead monsters */
 		if (!m_ptr->r_idx) continue;
 
-		/* Skip monsters not carrying lite */
-		if (!rf_has(r_ptr->flags, RF_HAS_LITE)) continue;
-		
+		/* Skip monsters not carrying light */
+		if (!rf_has(r_ptr->flags, RF_HAS_LIGHT)) continue;
+
 		/* Light a 3x3 box centered on the monster */
 		for (i = -1; i <= 1; i++)
 		{
@@ -3516,7 +3516,7 @@ bool tracked_object_is(int item)
  *
  * All disturbance cancels repeated commands, resting, and running.
  */
-void disturb(int stop_search, int unused_flag)
+void disturb(struct player *p, int stop_search, int unused_flag)
 {
 	/* Unused parameter */
 	(void)unused_flag;
@@ -3525,39 +3525,26 @@ void disturb(int stop_search, int unused_flag)
 	cmd_cancel_repeat();
 
 	/* Cancel Resting */
-	if (p_ptr->resting)
-	{
-		/* Cancel */
-		p_ptr->resting = 0;
-
-		/* Redraw the state (later) */
-		p_ptr->redraw |= (PR_STATE);
+	if (p->resting) {
+		p->resting = 0;
+		p->redraw |= PR_STATE;
 	}
 
 	/* Cancel running */
-	if (p_ptr->running)
-	{
-		/* Cancel */
+	if (p->running) {
 		p_ptr->running = 0;
 
  		/* Check for new panel if appropriate */
  		if (OPT(center_player)) verify_panel();
-
-		/* Calculate torch radius */
-		p_ptr->update |= (PU_TORCH);
+		p->update |= PU_TORCH;
 	}
 
 	/* Cancel searching if requested */
-	if (stop_search && p_ptr->searching)
+	if (stop_search && p->searching)
 	{
-		/* Cancel */
-		p_ptr->searching = FALSE;
-
-		/* Recalculate bonuses */
-		p_ptr->update |= (PU_BONUS);
-
-		/* Redraw the state */
-		p_ptr->redraw |= (PR_STATE);
+		p->searching = FALSE;
+		p->update |= PU_BONUS;
+		p->redraw |= PR_STATE;
 	}
 
 	/* Flush input */
@@ -3598,6 +3585,14 @@ struct cave *cave_new(void) {
 }
 
 void cave_free(struct cave *c) {
+	mem_free(c->info);
+	mem_free(c->info2);
+	mem_free(c->feat);
+	mem_free(c->cost);
+	mem_free(c->when);
+	mem_free(c->m_idx);
+	mem_free(c->o_idx);
+	mem_free(c->monsters);
 	mem_free(c);
 }
 

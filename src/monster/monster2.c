@@ -1418,7 +1418,7 @@ void update_mon(int m_idx, bool full)
 	if (d <= MAX_SIGHT)
 	{
 		/* Basic telepathy */
-		if (check_state(OF_TELEPATHY, p_ptr->state.flags))
+		if (check_state(p_ptr, OF_TELEPATHY, p_ptr->state.flags))
 		{
 			/* Empty mind, no telepathy */
 			if (rf_has(r_ptr->flags, RF_EMPTY_MIND))
@@ -1459,7 +1459,7 @@ void update_mon(int m_idx, bool full)
 			{
 				/* Learn about warm/cold blood */
 				rf_on(l_ptr->flags, RF_COLD_BLOOD);
-				
+
 				/* Handle "warm blooded" monsters */
 				if (!rf_has(r_ptr->flags, RF_COLD_BLOOD))
 				{
@@ -1468,23 +1468,23 @@ void update_mon(int m_idx, bool full)
 				}
 			}
 
-			/* See if the monster is emitting lite */
-			/*if (rf_has(r_ptr->flags, RF_HAS_LITE)) easy = flag = TRUE;*/
+			/* See if the monster is emitting light */
+			/*if (rf_has(r_ptr->flags, RF_HAS_LIGHT)) easy = flag = TRUE;*/
 
 			/* Use "illumination" */
 			if (player_can_see_bold(fy, fx))
 			{
 				/* Learn it emits light */
-				rf_on(l_ptr->flags, RF_HAS_LITE);
+				rf_on(l_ptr->flags, RF_HAS_LIGHT);
 
 				/* Learn about invisibility */
 				rf_on(l_ptr->flags, RF_INVISIBLE);
-				
+
 				/* Handle "invisible" monsters */
 				if (rf_has(r_ptr->flags, RF_INVISIBLE))
 				{
 					/* See invisible */
-					if (check_state(OF_SEE_INVIS, p_ptr->state.flags))
+					if (check_state(p_ptr, OF_SEE_INVIS, p_ptr->state.flags))
 					{
 						/* Easy to see */
 						easy = flag = TRUE;
@@ -1506,7 +1506,7 @@ void update_mon(int m_idx, bool full)
 	if (flag)
 	{
 		/* Learn about the monster's mind */
-		if (check_state(OF_TELEPATHY, p_ptr->state.flags))
+		if (check_state(p_ptr, OF_TELEPATHY, p_ptr->state.flags))
 		{
 			flags_set(l_ptr->flags, RF_SIZE, RF_EMPTY_MIND, RF_WEIRD_MIND, RF_SMART, RF_STUPID, FLAG_END);
 		}
@@ -1527,7 +1527,7 @@ void update_mon(int m_idx, bool full)
 			if (l_ptr->sights < MAX_SHORT) l_ptr->sights++;
 
 			/* Disturb on appearance */
-			if (OPT(disturb_move)) disturb(1, 0);
+			if (OPT(disturb_move)) disturb(p_ptr, 1, 0);
 
 			/* Window stuff */
 			p_ptr->redraw |= PR_MONLIST;
@@ -1550,7 +1550,7 @@ void update_mon(int m_idx, bool full)
 			if (p_ptr->health_who == m_idx) p_ptr->redraw |= (PR_HEALTH);
 
 			/* Disturb on disappearance */
-			if (OPT(disturb_move)) disturb(1, 0);
+			if (OPT(disturb_move)) disturb(p_ptr, 1, 0);
 
 			/* Window stuff */
 			p_ptr->redraw |= PR_MONLIST;
@@ -1568,7 +1568,7 @@ void update_mon(int m_idx, bool full)
 			m_ptr->mflag |= (MFLAG_VIEW);
 
 			/* Disturb on appearance */
-			if (OPT(disturb_near)) disturb(1, 0);
+			if (OPT(disturb_near)) disturb(p_ptr, 1, 0);
 
 			/* Re-draw monster window */
 			p_ptr->redraw |= PR_MONLIST;
@@ -1585,7 +1585,7 @@ void update_mon(int m_idx, bool full)
 			m_ptr->mflag &= ~(MFLAG_VIEW);
 
 			/* Disturb on disappearance */
-			if (OPT(disturb_near)) disturb(1, 0);
+			if (OPT(disturb_near)) disturb(p_ptr, 1, 0);
 
 			/* Re-draw monster list window */
 			p_ptr->redraw |= PR_MONLIST;
@@ -1622,14 +1622,11 @@ void update_monsters(bool full)
 /*
  * Make a monster carry an object
  */
-s16b monster_carry(int m_idx, object_type *j_ptr)
+s16b monster_carry(struct monster *m_ptr, object_type *j_ptr)
 {
 	s16b o_idx;
 
 	s16b this_o_idx, next_o_idx = 0;
-
-	monster_type *m_ptr = cave_monster(cave, m_idx);
-
 
 	/* Scan objects already being held for combination */
 	for (this_o_idx = m_ptr->hold_o_idx; this_o_idx; this_o_idx = next_o_idx)
@@ -1675,7 +1672,7 @@ s16b monster_carry(int m_idx, object_type *j_ptr)
 		o_ptr->iy = o_ptr->ix = 0;
 
 		/* Link the object to the monster */
-		o_ptr->held_m_idx = m_idx;
+		o_ptr->held_m_idx = m_ptr->midx;
 
 		/* Link the object to the pile */
 		o_ptr->next_o_idx = m_ptr->hold_o_idx;
@@ -1724,7 +1721,7 @@ void monster_swap(int y1, int x1, int y2, int x2)
 
 		/* Radiate light? */
 		r_ptr = &r_info[m_ptr->r_idx];
-		if (rf_has(r_ptr->flags, RF_HAS_LITE)) p_ptr->update |= PU_UPDATE_VIEW;
+		if (rf_has(r_ptr->flags, RF_HAS_LIGHT)) p_ptr->update |= PU_UPDATE_VIEW;
 
 		/* Redraw monster list */
 		p_ptr->redraw |= (PR_MONLIST);
@@ -1767,7 +1764,7 @@ void monster_swap(int y1, int x1, int y2, int x2)
 
 		/* Radiate light? */
 		r_ptr = &r_info[m_ptr->r_idx];
-		if (rf_has(r_ptr->flags, RF_HAS_LITE)) p_ptr->update |= PU_UPDATE_VIEW;
+		if (rf_has(r_ptr->flags, RF_HAS_LIGHT)) p_ptr->update |= PU_UPDATE_VIEW;
 
 		/* Redraw monster list */
 		p_ptr->redraw |= (PR_MONLIST);
@@ -1893,7 +1890,7 @@ static bool mon_create_drop(int m_idx, byte origin)
 		i_ptr->origin_depth = p_ptr->depth;
 		i_ptr->origin_xtra = m_ptr->r_idx;
 		i_ptr->number = randint0(drop->max - drop->min) + drop->min;
-		if (monster_carry(m_idx, i_ptr))
+		if (monster_carry(m_ptr, i_ptr))
 			any = TRUE;
 	}
 
@@ -1910,7 +1907,7 @@ static bool mon_create_drop(int m_idx, byte origin)
 		i_ptr->origin = origin;
 		i_ptr->origin_depth = p_ptr->depth;
 		i_ptr->origin_xtra = m_ptr->r_idx;
-		if (monster_carry(m_idx, i_ptr))
+		if (monster_carry(m_ptr, i_ptr))
 			any = TRUE;
 	}
 
@@ -1934,6 +1931,7 @@ s16b monster_place(int y, int x, monster_type *n_ptr, byte origin)
 	m_idx = mon_pop();
 
 	if (!m_idx) return 0;
+	n_ptr->midx = m_idx;
 
 	/* Make a new monster */
 	cave->m_idx[y][x] = m_idx;
@@ -2116,7 +2114,7 @@ static bool place_monster_one(int y, int x, int r_idx, bool slp, byte origin)
 		n_ptr->mflag |= (MFLAG_NICE);
 
 	/* Radiate light? */
-	if (rf_has(r_ptr->flags, RF_HAS_LITE))
+	if (rf_has(r_ptr->flags, RF_HAS_LIGHT))
 		p_ptr->update |= PU_UPDATE_VIEW;
 	
 	/* Is this obviously a monster? (Mimics etc. aren't) */
@@ -3195,16 +3193,15 @@ void flush_all_monster_messages(void)
  * Learn about an "observed" resistance or other player state property, or
  * lack of it.
  */
-void update_smart_learn(int m_idx, int what)
+void update_smart_learn(struct monster *m, struct player *p, int what)
 {
-	monster_type *m_ptr = cave_monster(cave, m_idx);
-	monster_race *r_ptr = &r_info[m_ptr->r_idx];
+	monster_race *r_ptr = &r_info[m->r_idx];
 
 	/* Sanity check */
 	if (!what) return;
 
 	/* anything a monster might learn, the player should learn */
-	wieldeds_notice_flag(what);
+	wieldeds_notice_flag(p, what);
 
 	/* Not allowed to learn */
 	if (!OPT(birth_ai_learn)) return;
@@ -3216,10 +3213,10 @@ void update_smart_learn(int m_idx, int what)
 	if (!rf_has(r_ptr->flags, RF_SMART) && one_in_(2)) return;
 
 	/* Analyze the knowledge; fail very rarely */
-	if (check_state(what, p_ptr->state.flags) && !one_in_(100))
-		of_on(m_ptr->known_pflags, what);
+	if (check_state(p, what, p->state.flags) && !one_in_(100))
+		of_on(m->known_pflags, what);
 	else
-		of_off(m_ptr->known_pflags, what);
+		of_off(m->known_pflags, what);
 }
 
 
@@ -3271,7 +3268,7 @@ static void build_quest_stairs(int y, int x)
  * Note that only the player can induce "monster_death()" on Uniques.
  * Thus (for now) all Quest monsters should be Uniques.
  */
-void monster_death(int m_idx)
+void monster_death(int m_idx, bool stats)
 {
 	int i, y, x;
 	int dump_item = 0;
@@ -3310,20 +3307,22 @@ void monster_death(int m_idx)
 		delete_object_idx(this_o_idx);
 
 		/* Count it and drop it - refactor once origin is a bitflag */
-		if ((i_ptr->tval == TV_GOLD) && (i_ptr->origin != ORIGIN_STOLEN))
-			dump_gold++;
-		else if ((i_ptr->tval != TV_GOLD) && ((i_ptr->origin == ORIGIN_DROP)
-				|| (i_ptr->origin == ORIGIN_DROP_PIT)
-				|| (i_ptr->origin == ORIGIN_DROP_VAULT)
-				|| (i_ptr->origin == ORIGIN_DROP_SUMMON)
-				|| (i_ptr->origin == ORIGIN_DROP_SPECIAL)
-				|| (i_ptr->origin == ORIGIN_DROP_BREED)
-				|| (i_ptr->origin == ORIGIN_DROP_POLY)
-				|| (i_ptr->origin == ORIGIN_DROP_WIZARD)))
-			dump_item++;
+		if (!stats) {
+			if ((i_ptr->tval == TV_GOLD) && (i_ptr->origin != ORIGIN_STOLEN))
+				dump_gold++;
+			else if ((i_ptr->tval != TV_GOLD) && ((i_ptr->origin == ORIGIN_DROP)
+					|| (i_ptr->origin == ORIGIN_DROP_PIT)
+					|| (i_ptr->origin == ORIGIN_DROP_VAULT)
+					|| (i_ptr->origin == ORIGIN_DROP_SUMMON)
+					|| (i_ptr->origin == ORIGIN_DROP_SPECIAL)
+					|| (i_ptr->origin == ORIGIN_DROP_BREED)
+					|| (i_ptr->origin == ORIGIN_DROP_POLY)
+					|| (i_ptr->origin == ORIGIN_DROP_WIZARD)))
+				dump_item++;
+		}
 
-		/* Change origin if monster is invisible */
-		if (!visible)
+		/* Change origin if monster is invisible, unless we're in stats mode */
+		if (!visible && !stats)
 			i_ptr->origin = ORIGIN_DROP_UNKNOWN;
 
 		drop_near(cave, i_ptr, 0, y, x, TRUE);
@@ -3506,7 +3505,7 @@ bool mon_take_hit(int m_idx, int dam, bool *fear, const char *note)
 		player_exp_gain(p_ptr, new_exp);
 
 		/* Generate treasure */
-		monster_death(m_idx);
+		monster_death(m_idx, FALSE);
 
 		/* Recall even invisible uniques or winners */
 		if (m_ptr->ml || rf_has(r_ptr->flags, RF_UNIQUE))

@@ -227,9 +227,11 @@ static void chest_death(int y, int x, s16b o_idx)
 				continue;
 			if (i_ptr->tval == TV_CHEST)
 				continue;
-			i_ptr->origin = ORIGIN_CHEST;
-			i_ptr->origin_depth = o_ptr->origin_depth;
 		}
+
+		/* Record origin */
+		i_ptr->origin = ORIGIN_CHEST;
+		i_ptr->origin_depth = o_ptr->origin_depth;
 
 		/* Drop it in the dungeon */
 		drop_near(cave, i_ptr, 0, y, x, TRUE);
@@ -266,7 +268,7 @@ static void chest_trap(int y, int x, s16b o_idx)
 	if (trap & (CHEST_LOSE_STR))
 	{
 		msg("A small needle has pricked you!");
-		take_hit(damroll(1, 4), "a poison needle");
+		take_hit(p_ptr, damroll(1, 4), "a poison needle");
 		(void)do_dec_stat(A_STR, FALSE);
 	}
 
@@ -274,7 +276,7 @@ static void chest_trap(int y, int x, s16b o_idx)
 	if (trap & (CHEST_LOSE_CON))
 	{
 		msg("A small needle has pricked you!");
-		take_hit(damroll(1, 4), "a poison needle");
+		take_hit(p_ptr, damroll(1, 4), "a poison needle");
 		(void)do_dec_stat(A_CON, FALSE);
 	}
 
@@ -282,14 +284,14 @@ static void chest_trap(int y, int x, s16b o_idx)
 	if (trap & (CHEST_POISON))
 	{
 		msg("A puff of green gas surrounds you!");
-		(void)inc_timed(TMD_POISONED, 10 + randint1(20), TRUE, TRUE);
+		(void)player_inc_timed(p_ptr, TMD_POISONED, 10 + randint1(20), TRUE, TRUE);
 	}
 
 	/* Paralyze */
 	if (trap & (CHEST_PARALYZE))
 	{
 		msg("A puff of yellow gas surrounds you!");
-		(void)inc_timed(TMD_PARALYZED, 10 + randint1(20), TRUE, TRUE);
+		(void)player_inc_timed(p_ptr, TMD_PARALYZED, 10 + randint1(20), TRUE, TRUE);
 	}
 
 	/* Summon monsters */
@@ -310,7 +312,7 @@ static void chest_trap(int y, int x, s16b o_idx)
 		msg("There is a sudden explosion!");
 		msg("Everything inside the chest is destroyed!");
 		o_ptr->pval[DEFAULT_PVAL] = 0;
-		take_hit(damroll(5, 8), "an exploding chest");
+		take_hit(p_ptr, damroll(5, 8), "an exploding chest");
 	}
 }
 
@@ -707,7 +709,7 @@ void do_cmd_open(cmd_code code, cmd_arg args[])
 	if (!o_idx && !do_cmd_open_test(y, x))
 	{
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 		return;
 	}
 
@@ -751,7 +753,7 @@ void do_cmd_open(cmd_code code, cmd_arg args[])
 	}
 
 	/* Cancel repeat unless we may continue */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 
@@ -844,7 +846,7 @@ void do_cmd_close(cmd_code code, cmd_arg args[])
 	if (!do_cmd_close_test(y, x))
 	{
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 		return;
 	}
 
@@ -878,7 +880,7 @@ void do_cmd_close(cmd_code code, cmd_arg args[])
 	}
 
 	/* Cancel repeat unless told not to */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 
@@ -1030,7 +1032,7 @@ static bool do_cmd_tunnel_aux(int y, int x)
 			if (gold)
 			{
 				/* Place some gold */
-				place_gold(cave, y, x, p_ptr->depth);
+				place_gold(cave, y, x, p_ptr->depth, ORIGIN_FLOOR);
 
 				/* Message */
 				msg("You have found something!");
@@ -1157,7 +1159,7 @@ void do_cmd_tunnel(cmd_code code, cmd_arg args[])
 	if (!do_cmd_tunnel_test(y, x))
 	{
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 		return;
 	}
 
@@ -1191,7 +1193,7 @@ void do_cmd_tunnel(cmd_code code, cmd_arg args[])
 	}
 
 	/* Cancel repetition unless we can continue */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 /*
@@ -1324,7 +1326,7 @@ void do_cmd_disarm(cmd_code code, cmd_arg args[])
 	if (!o_idx && !do_cmd_disarm_test(y, x))
 	{
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 		return;
 	}
 
@@ -1368,7 +1370,7 @@ void do_cmd_disarm(cmd_code code, cmd_arg args[])
 	}
 
 	/* Cancel repeat unless told not to */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 
@@ -1467,7 +1469,7 @@ static bool do_cmd_bash_aux(int y, int x)
 		msg("You are off-balance.");
 
 		/* Hack -- Lose balance ala paralysis */
-		(void)inc_timed(TMD_PARALYZED, 2 + randint0(2), TRUE, FALSE);
+		(void)player_inc_timed(p_ptr, TMD_PARALYZED, 2 + randint0(2), TRUE, FALSE);
 	}
 
 	/* Result */
@@ -1505,7 +1507,7 @@ void do_cmd_bash(cmd_code code, cmd_arg args[])
 	if (!do_cmd_bash_test(y, x))
 	{
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 		return;
 	}
 
@@ -1539,7 +1541,7 @@ void do_cmd_bash(cmd_code code, cmd_arg args[])
 	}
 
 	/* Cancel repeat unless we may continue */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 
@@ -1606,7 +1608,7 @@ void do_cmd_alter_aux(int dir)
 		msg("You spin around.");
 
 	/* Cancel repetition unless we can continue */
-	if (!more) disturb(0, 0);
+	if (!more) disturb(p_ptr, 0, 0);
 }
 
 void do_cmd_alter(cmd_code code, cmd_arg args[])
@@ -1755,7 +1757,7 @@ static bool do_cmd_walk_test(int y, int x)
 	if ((cave->m_idx[y][x] > 0) && (cave_monster(cave, cave->m_idx[y][x])->ml))
 	{
 		/* Handle player fear */
-		if(check_state(OF_AFRAID, p_ptr->state.flags))
+		if(check_state(p_ptr, OF_AFRAID, p_ptr->state.flags))
 		{
 			/* Extract monster name (or "it") */
 			char m_name[80];
@@ -1795,7 +1797,7 @@ static bool do_cmd_walk_test(int y, int x)
 			msgt(MSG_HITWALL, "There is a wall in the way!");
 
 		/* Cancel repeat */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 
 		/* Nope */
 		return (FALSE);
@@ -1939,7 +1941,7 @@ void do_cmd_hold(cmd_code code, cmd_arg args[])
 	    (cave->feat[p_ptr->py][p_ptr->px] <= FEAT_SHOP_TAIL))
 	{
 		/* Disturb */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 
 		cmd_insert(CMD_ENTER_STORE);
 
@@ -2013,7 +2015,7 @@ void do_cmd_rest(cmd_code code, cmd_arg args[])
 	p_ptr->redraw |= (PR_STATE);
 
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Refresh XXX XXX XXX */
 	Term_fresh();

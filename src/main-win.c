@@ -276,6 +276,7 @@
  * Include the support for loading bitmaps
  */
 #ifdef USE_GRAPHICS
+//# include "win/readdib.h"
 # include "win/readdib.h"
 #endif /* USE_GRAPHICS */
 
@@ -1284,79 +1285,44 @@ static bool init_graphics(void)
 		char buf[1024];
 		int wid, hgt;
 		const char *name;
-		const char *mask = NULL;
 
-		if (arg_graphics == GRAPHICS_DAVID_GERVAIS)
-		{
+		if (arg_graphics == GRAPHICS_DAVID_GERVAIS) {
 			wid = 32;
 			hgt = 32;
-
-			name = "32x32.bmp";
-			mask = "mask32.bmp";
-
+			name = "32x32.png";
 			ANGBAND_GRAF = "david";
-
 			use_transparency = FALSE;
-		}
-		else if (arg_graphics == GRAPHICS_ADAM_BOLT)
-		{
+		} else if (arg_graphics == GRAPHICS_ADAM_BOLT){
 			wid = 16;
 			hgt = 16;
-
-			name = "16X16.BMP";
-			mask = "mask.bmp";
-
+			name = "16x16.png";
 			ANGBAND_GRAF = "new";
-
 			use_transparency = TRUE;
-		}
-		else if (arg_graphics == GRAPHICS_NOMAD)
-		{
+		} else if (arg_graphics == GRAPHICS_NOMAD) {
 			wid = 16;
 			hgt = 16;
-
-			name = "8X16.BMP";
-			mask = "mask8x16.bmp";
-
+			name = "8x16.png";
 			ANGBAND_GRAF = "nomad";
-
 			use_transparency = TRUE;
-		}
-		else
-		{
+		} else {
 			wid = 8;
 			hgt = 8;
-
-			name = "8X8.BMP";
+			name = "8x8.png";
 			ANGBAND_GRAF = "old";
 		}
 
 		/* Access the bitmap file */
 		path_build(buf, sizeof(buf), ANGBAND_DIR_XTRA_GRAF, name);
 
-		/* Load the bitmap or quit */
-		if (!ReadDIB(data[0].w, buf, &infGraph))
-		{
-			plog_fmt("Cannot read bitmap file '%s'", name);
-			return (FALSE);
+		/* Load the image or quit */
+		if (!ReadDIB2_PNG(data[0].w, buf, &infGraph, &infMask)) {
+			plog_fmt("Cannot read file '%s'", name);
+			return FALSE;
 		}
 
 		/* Save the new sizes */
 		infGraph.CellWidth = wid;
 		infGraph.CellHeight = hgt;
-
-		if (mask)
-		{
-			/* Access the mask file */
-			path_build(buf, sizeof(buf), ANGBAND_DIR_XTRA_GRAF, mask);
-
-			/* Load the bitmap or quit */
-			if (!ReadDIB(data[0].w, buf, &infMask))
-			{
-				plog_fmt("Cannot read bitmap file '%s'", buf);
-				return (FALSE);
-			}
-		}
 
 		/* Activate a palette */
 		if (!new_palette())

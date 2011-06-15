@@ -303,12 +303,19 @@ bool object_check_for_ident(object_type *o_ptr)
 	    (object_defence_plusses_are_visible(o_ptr) || (object_was_sensed(o_ptr) && o_ptr->to_a == 0)) &&
 	    (object_effect_is_known(o_ptr) || !object_effect(o_ptr)))
 	{
-		object_notice_everything(o_ptr);
-		return TRUE;
+		/* In addition to knowing the pval flags, it is necessary to know the pvals to know everything */
+		int i;
+		for (i = 0; i < o_ptr->num_pvals; i++)
+			if (!object_this_pval_is_visible(o_ptr, i))
+				break;
+		if (i == o_ptr->num_pvals) {
+			object_notice_everything(o_ptr);
+			return TRUE;
+		}
 	}
 
 	/* We still know all the flags, so we still know if it's an ego */
-	else if (o_ptr->ego)
+	if (o_ptr->ego)
 	{
 		/* require worn status so you don't learn launcher of accuracy or gloves of slaying before wield */
 		if (object_was_worn(o_ptr))
@@ -536,7 +543,7 @@ void object_notice_effect(object_type *o_ptr)
 }
 
 
-static void object_notice_defence_plusses(object_type *o_ptr)
+static void object_notice_defence_plusses(struct player *p, object_type *o_ptr)
 {
 	assert(o_ptr && o_ptr->kind);
 
@@ -556,7 +563,7 @@ static void object_notice_defence_plusses(object_type *o_ptr)
 				o_name);
 	}
 
-	p_ptr->update |= (PU_BONUS);
+	p->update |= (PU_BONUS);
 	event_signal(EVENT_INVENTORY);
 	event_signal(EVENT_EQUIPMENT);
 }
@@ -672,13 +679,13 @@ bool object_notice_curses(object_type *o_ptr)
 /**
  * Notice things which happen on defending.
  */
-void object_notice_on_defend(void)
+void object_notice_on_defend(struct player *p)
 {
 	int i;
 
 	for (i = INVEN_WIELD; i < INVEN_TOTAL; i++)
-		if (p_ptr->inventory[i].kind)
-			object_notice_defence_plusses(&p_ptr->inventory[i]);
+		if (p->inventory[i].kind)
+			object_notice_defence_plusses(p, &p->inventory[i]);
 
 	event_signal(EVENT_INVENTORY);
 	event_signal(EVENT_EQUIPMENT);
@@ -893,7 +900,7 @@ static void object_notice_after_time(void)
  *
  * \param flag is the flag to notice
  */
-void wieldeds_notice_flag(int flag)
+void wieldeds_notice_flag(struct player *p, int flag)
 {
 	int i;
 
@@ -903,7 +910,7 @@ void wieldeds_notice_flag(int flag)
 	/* XXX Eddie need different naming conventions for starting wieldeds at INVEN_WIELD vs INVEN_WIELD+2 */
 	for (i = INVEN_WIELD; i < ALL_INVEN_TOTAL; i++)
 	{
-		object_type *o_ptr = &p_ptr->inventory[i];
+		object_type *o_ptr = &p->inventory[i];
 		bitflag f[OF_SIZE];
 
 		if (!o_ptr->kind) continue;
@@ -1150,7 +1157,7 @@ void sense_inventory(void)
 		feel = object_pseudo(o_ptr);
 
 		/* Stop everything */
-		disturb(0, 0);
+		disturb(p_ptr, 0, 0);
 
 		if (cursed)
 			text = "cursed";

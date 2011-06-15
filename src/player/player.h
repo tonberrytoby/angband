@@ -17,10 +17,10 @@ extern const byte adj_str_hold[STAT_RANGE];
 
 void calc_bonuses(object_type inventory[], player_state *state, bool id_only);
 int calc_blows(const object_type *o_ptr, player_state *state, int extra_blows);
-void notice_stuff(void);
-void update_stuff(void);
-void redraw_stuff(void);
-void handle_stuff(void);
+void notice_stuff(struct player *p);
+void update_stuff(struct player *p);
+void redraw_stuff(struct player *p);
+void handle_stuff(struct player *p);
 int weight_remaining(void);
 
 /* class.c */
@@ -51,11 +51,11 @@ void spell_learn(int spell);
 bool spell_cast(int spell, int dir);
 
 /* timed.c */
-bool set_timed(int idx, int v, bool notify);
-bool inc_timed(int idx, int v, bool notify, bool check);
-bool dec_timed(int idx, int v, bool notify);
-bool clear_timed(int idx, bool notify);
-bool set_food(int v);
+bool player_set_timed(struct player *p, int idx, int v, bool notify);
+bool player_inc_timed(struct player *p, int idx, int v, bool notify, bool check);
+bool player_dec_timed(struct player *p, int idx, int v, bool notify);
+bool player_clear_timed(struct player *p, int idx, bool notify);
+bool player_set_food(struct player *p, int v);
 
 /* util.c */
 s16b modify_stat_value(int value, int amount);

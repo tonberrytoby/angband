@@ -15,15 +15,41 @@
 
 #include "angband.h"
 #include "object/tvalsval.h"
+#include "player/types.h"
 
 static struct player_sex TEST_DATA test_sex = {
 	.title = "Test Sex",
 	.winner = "Test Winner",
 };
 
+static struct object_base TEST_DATA sword_base = {
+	.name = "Test Sword",
+	.tval = TV_SWORD,
+	.next = NULL,
+	.break_perc = 50,
+};
+
+static struct artifact TEST_DATA test_artifact_sword = {
+	.name = "Test Artifact",
+	.text = "A test artifact.",
+	.aidx = 0,
+	.next = NULL,
+	.tval = TV_SWORD,
+	.sval = SV_LONG_SWORD,
+	.to_a = 1,
+	.to_h = 2,
+	.to_d = 3,
+	.ac = 5,
+	.dd = 2,
+	.ds = 5,
+	.weight = 16,
+	.cost = 40,
+};
+
 static struct object_kind TEST_DATA test_longsword = {
 	.name = "Test Longsword",
 	.text = "A test longsword [0].",
+	.base = &sword_base,
 	.kidx = 0,
 	.tval = TV_SWORD,
 	.sval = SV_LONG_SWORD,
@@ -355,6 +381,57 @@ static struct monster_base TEST_DATA test_rb_info = {
 	
 };
 
+#define _NOBLOW { .method = RBM_NONE, .effect = RBE_NONE, .d_dice = 0, .d_side = 0 }
+
+static struct monster_race TEST_DATA test_r_human = {
+	.next = NULL,
+	.ridx = 0,
+	.name = "Human",
+	.text = "A random test human",
+
+	.base = &test_rb_info,
+
+	.avg_hp = 10,
+	.ac = 12,
+	.sleep = 0,
+	.aaf = 20,
+	.speed = 110,
+	.mexp = 50,
+	.power = 1,
+	.scaled_power = 1,
+	.highest_threat = 5,
+	.freq_innate = 0,
+	.freq_spell = 0,
+
+	.blow = {
+		{
+			.method = RBM_HIT,
+			.effect = RBE_HURT,
+			.d_dice = 3,
+			.d_side = 1,
+		},
+		_NOBLOW,
+		_NOBLOW,
+		_NOBLOW,
+	},
+
+	.level = 1,
+	.rarity = 1,
+
+	.d_attr = 0,
+	.d_char = 't',
+
+	.x_attr = 0,
+	.x_char = 't',
+
+	.max_num = 100,
+	.cur_num = 0,
+
+	.drops = NULL,
+};
+
+#undef _NOBLOW
+
 static struct maxima TEST_DATA test_z_info = {
 	.f_max   = 2,
 	.k_max   = 2,
@@ -367,4 +444,63 @@ static struct maxima TEST_DATA test_z_info = {
 	.o_max   = 2,
 	.m_max   = 2,
 };
+
+static struct object TEST_DATA test_inven[ALL_INVEN_TOTAL];
+
+static struct player TEST_DATA test_player = {
+	.py = 1,
+	.px = 1,
+	.psex = 0,
+	.sex = &test_sex,
+	.race = &test_race,
+	.class = &test_class,
+	.hitdie = 10,
+	.expfact = 100,
+	.age = 12,
+	.ht = 40,
+	.wt = 80,
+	.sc = 100,
+	.au = 500,
+	.max_depth = 10,
+	.depth = 6,
+	.max_lev = 3,
+	.lev = 3,
+	.max_exp = 100,
+	.exp = 80,
+	.mhp = 20,
+	.chp = 14,
+	.msp = 12,
+	.csp = 11,
+	.stat_max = {
+		[A_STR] = 14,
+		[A_DEX] = 12,
+		[A_CON] = 14,
+		[A_WIS] = 10,
+		[A_INT] = 8,
+		[A_CHR] = 12,
+	},
+	.stat_cur = {
+		[A_STR] = 14,
+		[A_DEX] = 11,
+		[A_CON] = 14,
+		[A_WIS] = 10,
+		[A_INT] = 8,
+		[A_CHR] = 8,
+	},
+	.word_recall = 0,
+	.energy = 100,
+	.food = 5000,
+	.player_hp = {
+		  5,  10,  15,  20,  25,  30,  35,  40,  45,  50,
+		 55,  60,  65,  70,  75,  80,  85,  90,  95, 100,
+		105, 110, 115, 120, 125, 130, 135, 140, 145, 150,
+		155, 160, 165, 170, 175, 180, 185, 190, 195, 200,
+		205, 210, 215, 220, 225, 230, 235, 240, 245, 250
+	},
+	.history = "no history",
+	.is_dead = 0,
+	.wizard = 0,
+	.inventory = &test_inven[0],
+};
+
 #endif /* !UNIT_TEST_DATA */

@@ -496,7 +496,7 @@ void bell(const char *reason)
 
 		/* Window stuff */
 		p_ptr->redraw |= (PR_MESSAGE);
-		redraw_stuff();
+		redraw_stuff(p_ptr);
 	}
 
 	/* Flush the input (later!) */
@@ -571,6 +571,9 @@ static void msg_print_aux(u16b type, const char *msg)
 	char buf[1024];
 	byte color;
 	int w, h;
+
+	if (!Term)
+		return;
 
 	/* Obtain the size */
 	(void)Term_get_size(&w, &h);
@@ -712,7 +715,8 @@ void message_flush(void)
 	if (message_column)
 	{
 		/* Print pending messages */
-		msg_flush(message_column);
+		if (Term)
+			msg_flush(message_column);
 
 		/* Forget it */
 		msg_flag = FALSE;
@@ -1684,7 +1688,7 @@ bool get_check(const char *prompt)
 	/* Make some buttons */
 	button_add("[y]", 'y');
 	button_add("[n]", 'n');
-	redraw_stuff();
+	redraw_stuff(p_ptr);
   
 	/* Prompt for it */
 	prt(buf, 0, 0);
@@ -1696,7 +1700,7 @@ bool get_check(const char *prompt)
 
 	/* Hack - restore the repeat button */
 	if (repeat) button_add("[Rpt]", 'n');
-	redraw_stuff();
+	redraw_stuff(p_ptr);
   
 	/* Erase the prompt */
 	prt("", 0, 0);
@@ -1740,7 +1744,7 @@ char get_char(const char *prompt, const char *options, size_t len, char fallback
 		strnfmt(button, 4, "[%c]", options[i]);
 		button_add(button, options[i]);
 	}
-	redraw_stuff();
+	redraw_stuff(p_ptr);
   
 	/* Prompt for it */
 	prt(buf, 0, 0);
@@ -1760,7 +1764,7 @@ char get_char(const char *prompt, const char *options, size_t len, char fallback
 
 	/* Hack - restore the repeat button */
 	if (repeat) button_add("[Rpt]", 'n');
-	redraw_stuff();
+	redraw_stuff(p_ptr);
   
 	/* Erase the prompt */
 	prt("", 0, 0);

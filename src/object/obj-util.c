@@ -4246,7 +4246,7 @@ void pack_overflow(void)
 	o_ptr = &p_ptr->inventory[item];
 
 	/* Disturbing */
-	disturb(0, 0);
+	disturb(p_ptr, 0, 0);
 
 	/* Warning */
 	msg("Your pack overflows!");
@@ -4266,13 +4266,13 @@ void pack_overflow(void)
 	inven_item_optimize(item);
 
 	/* Notice stuff (if needed) */
-	if (p_ptr->notice) notice_stuff();
+	if (p_ptr->notice) notice_stuff(p_ptr);
 
 	/* Update stuff (if needed) */
-	if (p_ptr->update) update_stuff();
+	if (p_ptr->update) update_stuff(p_ptr);
 
 	/* Redraw stuff (if needed) */
-	if (p_ptr->redraw) redraw_stuff();
+	if (p_ptr->redraw) redraw_stuff(p_ptr);
 }
 
 struct object *object_byid(s16b oidx)

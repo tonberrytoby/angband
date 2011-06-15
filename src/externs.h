@@ -72,10 +72,7 @@ extern char angband_term_name[ANGBAND_TERM_MAX][16];
 extern byte angband_color_table[MAX_COLORS][4];
 extern color_type color_table[MAX_COLORS];
 extern const const char *angband_sound_name[MSG_MAX];
-extern int temp_n;
 extern u16b *temp_g;
-extern byte *temp_y;
-extern byte *temp_x;
 extern maxima *z_info;
 extern monster_lore *l_list;
 extern quest *q_list;
@@ -174,10 +171,6 @@ extern void dungeon_change_level(int dlev);
 extern void play_game(void);
 extern int value_check_aux1(const object_type *o_ptr);
 extern void idle_update(void);
-
-/* melee1.c */
-bool check_hit(int power, int level);
-bool make_attack_normal(int m_idx);
 
 /* melee2.c */
 extern bool make_attack_spell(int m_idx);

@@ -1722,13 +1722,13 @@ void process_player_name(bool sf)
 void save_game(void)
 {
 	/* Disturb the player */
-	disturb(1, 0);
+	disturb(p_ptr, 1, 0);
 
 	/* Clear messages */
 	message_flush();
 
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Message */
 	prt("Saving game...", 0, 0);
@@ -1771,7 +1771,7 @@ void save_game(void)
 void close_game(void)
 {
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Flush the messages */
 	message_flush();

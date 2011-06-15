@@ -535,7 +535,7 @@ static void display_knowledge(const char *title, int *obj_list, int o_count,
 		menu_refresh(inactive_menu);
 		menu_refresh(active_menu);
 
-		handle_stuff();
+		handle_stuff(p_ptr);
 
 		if (visual_list)
 		{
@@ -1031,7 +1031,7 @@ static void mon_lore(int oid)
 {
 	/* Update the monster recall window */
 	monster_race_track(default_join[oid].oid);
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Save the screen */
 	screen_save();
@@ -1249,7 +1249,7 @@ static void desc_art_fake(int a_idx)
 	}
 
 	/* Hack -- Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	tb = object_info(o_ptr, OINFO_NONE);
 	object_desc(header, sizeof(header), o_ptr, ODESC_PREFIX | ODESC_FULL);
@@ -1545,7 +1545,7 @@ static void desc_obj_fake(int k_idx)
 
 	/* Update the object recall window */
 	track_object_kind(k_idx);
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Wipe the object */
 	object_wipe(o_ptr);
@@ -1560,7 +1560,7 @@ static void desc_obj_fake(int k_idx)
 	if (!kind->flavor) object_notice_everything(o_ptr);
 
 	/* Hack -- Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	tb = object_info(o_ptr, OINFO_NONE);
 	object_desc(header, sizeof(header), o_ptr, ODESC_PREFIX | ODESC_FULL);
@@ -1795,10 +1795,40 @@ static int f_cmp_fkind(const void *a, const void *b)
 }
 
 static const char *fkind_name(int gid) { return feature_group_text[gid]; }
-/* XXX needs retooling for multi-light terrain */
-static byte *f_xattr(int oid) { return &f_info[oid].x_attr[FEAT_LIGHTING_LIT]; }
-static char *f_xchar(int oid) { return &f_info[oid].x_char[FEAT_LIGHTING_LIT]; }
+/* Disgusting hack to allow 3 in 1 editting of terrain visuals */
+static enum grid_light_level f_uik_lighting = FEAT_LIGHTING_LIT;
+/* XXX needs *better* retooling for multi-light terrain */
+static byte *f_xattr(int oid) { return &f_info[oid].x_attr[f_uik_lighting]; }
+static char *f_xchar(int oid) { return &f_info[oid].x_char[f_uik_lighting]; }
 static void feat_lore(int oid) { (void)oid; /* noop */ }
+static const char *feat_prompt(int oid)
+{
+	(void)oid;
+	return ", 'l' to cycle lighting";
+}
+
+/*
+ * Special key actions for cycling lighting
+ */
+static void f_xtra_act(struct keypress ch, int oid)
+{
+	/* XXX must be a better way to cycle this */
+	if (ch.code == 'l') {
+		switch (f_uik_lighting) {
+				case FEAT_LIGHTING_LIT:  f_uik_lighting = FEAT_LIGHTING_BRIGHT; break;
+				case FEAT_LIGHTING_BRIGHT:  f_uik_lighting = FEAT_LIGHTING_DARK; break;
+				default:	f_uik_lighting = FEAT_LIGHTING_LIT; break;
+		}		
+	} else if (ch.code == 'L') {
+		switch (f_uik_lighting) {
+				case FEAT_LIGHTING_DARK:  f_uik_lighting = FEAT_LIGHTING_BRIGHT; break;
+				case FEAT_LIGHTING_LIT:  f_uik_lighting = FEAT_LIGHTING_DARK; break;
+				default:	f_uik_lighting = FEAT_LIGHTING_LIT; break;
+		}
+	}
+	
+}
+
 
 /*
  * Interact with feature visuals.
@@ -1808,7 +1838,7 @@ static void do_cmd_knowledge_features(const char *name, int row)
 	group_funcs fkind_f = {N_ELEMENTS(feature_group_text), FALSE,
 							fkind_name, f_cmp_fkind, feat_order, 0};
 
-	member_funcs feat_f = {display_feature, feat_lore, f_xchar, f_xattr, 0, 0, 0};
+	member_funcs feat_f = {display_feature, feat_lore, f_xchar, f_xattr, feat_prompt, f_xtra_act, 0};
 
 	int *features;
 	int f_count = 0;

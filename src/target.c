@@ -22,7 +22,7 @@
 #include "monster/monster.h"
 #include "squelch.h"
 
-/* 
+/*
  * Height of the help screen; any higher than 4 will overlap the health
  * bar which we want to keep in targeting mode.
  */
@@ -39,7 +39,7 @@ u16b target_who;
 /* Target location */
 s16b target_x, target_y;
 
-
+#define TS_INITIAL_SIZE	20
 
 /*** Functions ***/
 
@@ -272,7 +272,7 @@ static int cmp_distance(const void *a, const void *b)
 /*
  * Hack -- help "select" a location (see below)
  */
-static s16b target_pick(int y1, int x1, int dy, int dx)
+static s16b target_pick(int y1, int x1, int dy, int dx, struct point_set *targets)
 {
 	int i, v;
 
@@ -282,11 +282,11 @@ static s16b target_pick(int y1, int x1, int dy, int dx)
 
 
 	/* Scan the locations */
-	for (i = 0; i < temp_n; i++)
+	for (i = 0; i < point_set_size(targets); i++)
 	{
 		/* Point 2 */
-		x2 = temp_x[i];
-		y2 = temp_y[i];
+		x2 = targets->pts[i].x;
+		y2 = targets->pts[i].y;
 
 		/* Directed distance */
 		x3 = (x2 - x1);
@@ -390,16 +390,12 @@ static bool target_set_interactive_accept(int y, int x)
 }
 
 /*
- * Prepare the "temp" array for "target_interactive_set"
- *
- * Return the number of target_able monsters in the set.
+ * Return a target set of target_able monsters.
  */
-/* XXX: Untangle this. The whole temp_* thing is complete madness. */
-static void target_set_interactive_prepare(int mode)
+static struct point_set *target_set_interactive_prepare(int mode)
 {
 	int y, x;
-	struct loc *pts = mem_zalloc(sizeof(*pts) * SCREEN_HGT * SCREEN_WID);
-	unsigned int n = 0;
+	struct point_set *targets = point_set_new(TS_INITIAL_SIZE);
 
 	/* Scan the current panel */
 	for (y = Term->offset_y; y < Term->offset_y + SCREEN_HGT; y++)
@@ -423,22 +419,13 @@ static void target_set_interactive_prepare(int mode)
 			}
 
 			/* Save the location */
-			pts[n].x = x;
-			pts[n].y = y;
-			n++;
+			add_to_point_set(targets, y, x);
 		}
 	}
 
-	sort(pts, n, sizeof(*pts), cmp_distance);
-
-	/* Reset "temp" array */
-	temp_n = n;
-	while (n--) {
-		temp_x[n] = pts[n].x;
-		temp_y[n] = pts[n].y;
-	}
+	sort(targets->pts, point_set_size(targets), sizeof(*(targets->pts)), cmp_distance);
+	return targets;
 }
-
 
 /*
  * Perform the minimum "whole panel" adjustment to ensure that the given
@@ -618,7 +605,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 	char out_val[256];
 
 	char coords[20];
-	
+
 	/* Describe the square location */
 	coords_desc(coords, sizeof(coords), y, x);
 
@@ -647,7 +634,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 			s2 = "on ";
 		}
 
-		/* Hack -- hallucination */
+		/* Hallucination messes things up */
 		if (p_ptr->timed[TMD_IMAGE])
 		{
 			const char *name = "something strange";
@@ -697,7 +684,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 				health_track(p_ptr, cave->m_idx[y][x]);
 
 				/* Hack -- handle stuff */
-				handle_stuff();
+				handle_stuff(p_ptr);
 
 				/* Interact */
 				while (1)
@@ -768,7 +755,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 				else if (rf_has(r_ptr->flags, RF_MALE)) s1 = "He is ";
 				else s1 = "It is ";
 
-				/* Use a preposition */
+				/* Use a verb */
 				s2 = "carrying ";
 
 				/* Scan all objects being carried */
@@ -795,11 +782,12 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 								"%s%s%s%s, %s (%d:%d).",
 								s1, s2, s3, o_name, coords, y, x);
 					}
+					/* Disabled since monsters now carry their drops
 					else
 					{
 						strnfmt(out_val, sizeof(out_val),
 								"%s%s%s%s, %s.", s1, s2, s3, o_name, coords);
-					}
+					} */
 
 					prt(out_val, 0, 0);
 					move_cursor_relative(y, x);
@@ -834,7 +822,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 			boring = FALSE;
 
 			track_object(-floor_list[0]);
-			handle_stuff();
+			handle_stuff(p_ptr);
 
 			/* If there is more than one item... */
 			if (floor_num > 1) while (1)
@@ -881,7 +869,7 @@ static struct keypress target_set_interactive_aux(int y, int x, int mode)
 						if (0 <= pos && pos < floor_num)
 						{
 							track_object(-floor_list[pos]);
-							handle_stuff();
+							handle_stuff(p_ptr);
 							continue;
 						}
 						rdone = 1;
@@ -1015,29 +1003,32 @@ bool target_set_closest(int mode)
 	monster_type *m_ptr;
 	char m_name[80];
 	bool visibility;
+	struct point_set *targets;
 
 	/* Cancel old target */
 	target_set_monster(0);
 
 	/* Get ready to do targetting */
-	target_set_interactive_prepare(mode);
+	targets = target_set_interactive_prepare(mode);
 
 	/* If nothing was prepared, then return */
-	if (temp_n < 1)
+	if (point_set_size(targets) < 1)
 	{
 		msg("No Available Target.");
+		point_set_dispose(targets);
 		return FALSE;
 	}
 
 	/* Find the first monster in the queue */
-	y = temp_y[0];
-	x = temp_x[0];
+	y = targets->pts[0].y;
+	x = targets->pts[0].x;
 	m_idx = cave->m_idx[y][x];
 	
 	/* Target the monster, if possible */
 	if ((m_idx <= 0) || !target_able(m_idx))
 	{
 		msg("No Available Target.");
+		point_set_dispose(targets);
 		return FALSE;
 	}
 
@@ -1063,6 +1054,7 @@ bool target_set_closest(int mode)
 	Term_xtra(TERM_XTRA_DELAY, 150);
 	(void)Term_set_cursor(visibility);
 
+	point_set_dispose(targets);
 	return TRUE;
 }
 
@@ -1245,6 +1237,7 @@ bool target_set_interactive(int mode, int x, int y)
 	/* These are used for displaying the path to the target */
 	char path_char[MAX_RANGE];
 	byte path_attr[MAX_RANGE];
+	struct point_set *targets;
 
 	/* If we haven't been given an initial location, start on the
 	   player. */
@@ -1273,8 +1266,8 @@ bool target_set_interactive(int mode, int x, int y)
 	/* Display the help prompt */
 	prt("Press '?' for help.", help_prompt_loc, 0);
 
-	/* Prepare the "temp" array */
-	target_set_interactive_prepare(mode);
+	/* Prepare the target set */
+	targets = target_set_interactive_prepare(mode);
 
 	/* Start near the player */
 	m = 0;
@@ -1284,19 +1277,19 @@ bool target_set_interactive(int mode, int x, int y)
 		bool path_drawn = FALSE;
 		
 		/* Interesting grids */
-		if (flag && temp_n)
+		if (flag && point_set_size(targets))
 		{
-			y = temp_y[m];
-			x = temp_x[m];
+			y = targets->pts[m].y;
+			x = targets->pts[m].x;
 
 			/* Adjust panel if needed */
-			if (adjust_panel_help(y, x, help)) handle_stuff();
+			if (adjust_panel_help(y, x, help)) handle_stuff(p_ptr);
 		
 			/* Update help */
 			if (help) {
 				bool good_target = (cave->m_idx[y][x] > 0) &&
 					target_able(cave->m_idx[y][x]);
-				target_display_help(good_target, !(flag && temp_n));
+				target_display_help(good_target, !(flag && point_set_size(targets)));
 			}
 
 			/* Find the path. */
@@ -1333,7 +1326,7 @@ bool target_set_interactive(int mode, int x, int y)
 				case '*':
 				case '+':
 				{
-					if (++m == temp_n)
+					if (++m == point_set_size(targets))
 						m = 0;
 
 					break;
@@ -1342,7 +1335,7 @@ bool target_set_interactive(int mode, int x, int y)
 				case '-':
 				{
 					if (m-- == 0)
-						m = temp_n - 1;
+						m = point_set_size(targets) - 1;
 
 					break;
 				}
@@ -1353,7 +1346,7 @@ bool target_set_interactive(int mode, int x, int y)
 					verify_panel();
 
 					/* Handle stuff */
-					handle_stuff();
+					handle_stuff(p_ptr);
 
 					y = p_ptr->py;
 					x = p_ptr->px;
@@ -1405,7 +1398,7 @@ bool target_set_interactive(int mode, int x, int y)
 					/* Redraw main window */
 					p_ptr->redraw |= (PR_BASIC | PR_EXTRA | PR_MAP | PR_EQUIP);
 					Term_clear();
-					handle_stuff();
+					handle_stuff(p_ptr);
 					if (!help)
 						prt("Press '?' for help.", help_prompt_loc, 0);
 					
@@ -1427,11 +1420,11 @@ bool target_set_interactive(int mode, int x, int y)
 			/* Hack -- move around */
 			if (d)
 			{
-				int old_y = temp_y[m];
-				int old_x = temp_x[m];
+				int old_y = targets->pts[m].y;
+				int old_x = targets->pts[m].x;
 
 				/* Find a new monster */
-				i = target_pick(old_y, old_x, ddy[d], ddx[d]);
+				i = target_pick(old_y, old_x, ddy[d], ddx[d], targets);
 
 				/* Scroll to find interesting grid */
 				if (i < 0)
@@ -1443,20 +1436,22 @@ bool target_set_interactive(int mode, int x, int y)
 					if (change_panel(d))
 					{
 						/* Recalculate interesting grids */
-						target_set_interactive_prepare(mode);
+						point_set_dispose(targets);
+						targets = target_set_interactive_prepare(mode);
 
 						/* Find a new monster */
-						i = target_pick(old_y, old_x, ddy[d], ddx[d]);
+						i = target_pick(old_y, old_x, ddy[d], ddx[d], targets);
 
 						/* Restore panel if needed */
 						if ((i < 0) && modify_panel(Term, old_wy, old_wx))
 						{
 							/* Recalculate interesting grids */
-							target_set_interactive_prepare(mode);
+							point_set_dispose(targets);
+							targets = target_set_interactive_prepare(mode);
 						}
 
 						/* Handle stuff */
-						handle_stuff();
+						handle_stuff(p_ptr);
 					}
 				}
 
@@ -1472,7 +1467,7 @@ bool target_set_interactive(int mode, int x, int y)
 			if (help) 
 			{
 				bool good_target = ((cave->m_idx[y][x] > 0) && target_able(cave->m_idx[y][x]));
-				target_display_help(good_target, !(flag && temp_n));
+				target_display_help(good_target, !(flag && point_set_size(targets)));
 			}
 
 			/* Find the path. */
@@ -1518,7 +1513,7 @@ bool target_set_interactive(int mode, int x, int y)
 					verify_panel();
 
 					/* Handle stuff */
-					handle_stuff();
+					handle_stuff(p_ptr);
 
 					y = p_ptr->py;
 					x = p_ptr->px;
@@ -1537,9 +1532,9 @@ bool target_set_interactive(int mode, int x, int y)
 					bd = 999;
 
 					/* Pick a nearby monster */
-					for (i = 0; i < temp_n; i++)
+					for (i = 0; i < point_set_size(targets); i++)
 					{
-						t = distance(y, x, temp_y[i], temp_x[i]);
+						t = distance(y, x, targets->pts[i].y, targets->pts[i].x);
 
 						/* Pick closest */
 						if (t < bd)
@@ -1580,7 +1575,7 @@ bool target_set_interactive(int mode, int x, int y)
 					/* Redraw main window */
 					p_ptr->redraw |= (PR_BASIC | PR_EXTRA | PR_MAP | PR_EQUIP);
 					Term_clear();
-					handle_stuff();
+					handle_stuff(p_ptr);
 					if (!help)
 						prt("Press '?' for help.", help_prompt_loc, 0);
 					
@@ -1621,17 +1616,18 @@ bool target_set_interactive(int mode, int x, int y)
 				if (adjust_panel_help(y, x, help))
 				{
 					/* Handle stuff */
-					handle_stuff();
+					handle_stuff(p_ptr);
 
 					/* Recalculate interesting grids */
-					target_set_interactive_prepare(mode);
+					point_set_dispose(targets);
+					targets = target_set_interactive_prepare(mode);
 				}
 			}
 		}
 	}
 
 	/* Forget */
-	temp_n = 0;
+	point_set_dispose(targets);
 
 	/* Redraw as necessary */
 	if (help)
@@ -1650,7 +1646,7 @@ bool target_set_interactive(int mode, int x, int y)
 	verify_panel();
 
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Failure to set target */
 	if (!target_set) return (FALSE);

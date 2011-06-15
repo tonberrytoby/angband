@@ -209,8 +209,31 @@ static struct store *store_new(int idx) {
 	return s;
 }
 
-static enum parser_error ignored(struct parser *p) {
-	return PARSE_ERROR_NONE;
+/*
+ * Get rid of stores at cleanup. Gets rid of everything.
+ */
+void free_stores(void)
+{
+	struct owner *o;
+	struct owner *next;
+	int i;
+
+	/* Free the store inventories */
+	for (i = 0; i < MAX_STORES; i++)
+	{
+		/* Get the store */
+		store_type *st_ptr = &store[i];
+		/* Free the store inventory */
+		mem_free(st_ptr->stock);
+		mem_free(st_ptr->table);
+
+		for (o = st_ptr->owners; o; o = next) {
+			next = o->next;
+			string_free(o->name);
+			mem_free(o);
+		}
+	}
+	mem_free(store);
 }
 
 static enum parser_error parse_s(struct parser *p) {
@@ -1696,6 +1719,8 @@ static void flatten_stores(struct store *stores) {
 
 	while (stores) {
 		s = stores->next;
+		/* No need to free the sub-allocated memory, as this is passed on
+		 * to the array of stores */
 		mem_free(stores);
 		stores = s;
 	}
@@ -2285,7 +2310,7 @@ void do_cmd_buy(cmd_code code, cmd_arg args[])
 	}
 
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Remove the bought objects from the store */
 	store_item_increase(this_store, item, -amt);
@@ -2376,7 +2401,7 @@ void do_cmd_retrieve(cmd_code code, cmd_arg args[])
 	msg("You have %s (%c).", o_name, index_to_label(item_new));
 	
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 	
 	/* Remove the items from the home */
 	store_item_increase(STORE_HOME, item, -amt);
@@ -2636,7 +2661,7 @@ void do_cmd_sell(cmd_code code, cmd_arg args[])
 	inven_item_optimize(item);
 
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* The store gets that (known) object */
 	store_carry(current_store(), &sold_item);
@@ -2693,7 +2718,7 @@ void do_cmd_stash(cmd_code code, cmd_arg args[])
 	inven_item_optimize(item);
 	
 	/* Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 	
 	/* Let the home carry it */
 	home_carry(&dropped_item);
@@ -3059,8 +3084,8 @@ bool store_menu_handle(menu_type *m, const ui_event *event, int oid)
 		}
 
 		/* Notice and handle stuff */
-		notice_stuff();
-		handle_stuff();
+		notice_stuff(p_ptr);
+		handle_stuff(p_ptr);
 
 		/* Display the store */
 		store_display_recalc(m);

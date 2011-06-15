@@ -53,7 +53,7 @@ const struct gf_type gf_table[] =
  * \param flags is the set of flags we're checking
  * \param real is whether this is a real attack
  */
-int check_for_resist(int type, bitflag *flags, bool real)
+int check_for_resist(struct player *p, int type, bitflag *flags, bool real)
 {
 	const struct gf_type *gf_ptr = &gf_table[type];
 	int result = 0;
@@ -62,7 +62,7 @@ int check_for_resist(int type, bitflag *flags, bool real)
 		result--;
 
 	/* If it's not a real attack, we don't check timed status explicitly */
-	if (real && gf_ptr->opp && p_ptr->timed[gf_ptr->opp])
+	if (real && gf_ptr->opp && p->timed[gf_ptr->opp])
 		result++;
 
 	if (gf_ptr->resist && of_has(flags, gf_ptr->resist))
@@ -73,11 +73,11 @@ int check_for_resist(int type, bitflag *flags, bool real)
 
 	/* Notice flags, if it's a real attack */
 	if (real && gf_ptr->immunity)
-		wieldeds_notice_flag(gf_ptr->immunity);
+		wieldeds_notice_flag(p, gf_ptr->immunity);
 	if (real && gf_ptr->resist)
-		wieldeds_notice_flag(gf_ptr->resist);
+		wieldeds_notice_flag(p, gf_ptr->resist);
 	if (real && gf_ptr->vuln)
-		wieldeds_notice_flag(gf_ptr->vuln);
+		wieldeds_notice_flag(p, gf_ptr->vuln);
 
 	return result;
 }
@@ -93,7 +93,7 @@ bool check_side_immune(int type)
 	const struct gf_type *gf_ptr = &gf_table[type];
 
 	if (gf_ptr->immunity) {
-		if (gf_ptr->side_immune && check_state(gf_ptr->immunity,
+		if (gf_ptr->side_immune && check_state(p_ptr, gf_ptr->immunity,
 				p_ptr->state.flags))
 			return TRUE;
 	} else if ((gf_ptr->resist && of_has(p_ptr->state.flags, gf_ptr->resist)) ||
@@ -110,13 +110,13 @@ bool check_side_immune(int type)
  * \param type is the GF_ type to which it's learning about the player's
  *    resistance (or lack of)
  */
-void monster_learn_resists(int m_idx, int type)
+void monster_learn_resists(struct monster *m, struct player *p, int type)
 {
 	const struct gf_type *gf_ptr = &gf_table[type];
 
-	update_smart_learn(m_idx, gf_ptr->resist);
-	update_smart_learn(m_idx, gf_ptr->immunity);
-	update_smart_learn(m_idx, gf_ptr->vuln);
+	update_smart_learn(m, p, gf_ptr->resist);
+	update_smart_learn(m, p, gf_ptr->immunity);
+	update_smart_learn(m, p, gf_ptr->vuln);
 
 	return;
 }
@@ -176,13 +176,11 @@ s16b poly_r_idx(int r_idx)
  *
  * But allow variation to prevent infinite loops.
  */
-void teleport_away(int m_idx, int dis)
+void teleport_away(struct monster *m_ptr, int dis)
 {
 	int ny = 0, nx = 0, oy, ox, d, i, min;
 
 	bool look = TRUE;
-
-	monster_type *m_ptr = cave_monster(cave, m_idx);
 
 
 	/* Paranoia */
@@ -318,7 +316,7 @@ void teleport_player(int dis)
 	monster_swap(py, px, y, x);
 
 	/* Handle stuff XXX XXX XXX */
-	handle_stuff();
+	handle_stuff(p_ptr);
 }
 
 
@@ -371,7 +369,7 @@ void teleport_player_to(int ny, int nx)
 	monster_swap(py, px, y, x);
 
 	/* Handle stuff XXX XXX XXX */
-	handle_stuff();
+	handle_stuff(p_ptr);
 }
 
 
@@ -556,54 +554,54 @@ static void bolt_pict(int y, int x, int ny, int nx, int typ, byte *a, char *c)
  * when he dies, since the "You die." message is shown before setting
  * the player to "dead".
  */
-void take_hit(int dam, const char *kb_str)
+void take_hit(struct player *p, int dam, const char *kb_str)
 {
-	int old_chp = p_ptr->chp;
+	int old_chp = p->chp;
 
-	int warning = (p_ptr->mhp * op_ptr->hitpoint_warn / 10);
+	int warning = (p->mhp * op_ptr->hitpoint_warn / 10);
 
 
 	/* Paranoia */
-	if (p_ptr->is_dead) return;
+	if (p->is_dead) return;
 
 
 	/* Disturb */
-	disturb(1, 0);
+	disturb(p, 1, 0);
 
 	/* Mega-Hack -- Apply "invulnerability" */
-	if (p_ptr->timed[TMD_INVULN] && (dam < 9000)) return;
+	if (p->timed[TMD_INVULN] && (dam < 9000)) return;
 
 	/* Hurt the player */
-	p_ptr->chp -= dam;
+	p->chp -= dam;
 
 	/* Display the hitpoints */
-	p_ptr->redraw |= (PR_HP);
+	p->redraw |= (PR_HP);
 
 	/* Dead player */
-	if (p_ptr->chp < 0)
+	if (p->chp < 0)
 	{
 		/* Hack -- Note death */
 		msgt(MSG_DEATH, "You die.");
 		message_flush();
 
 		/* Note cause of death */
-		my_strcpy(p_ptr->died_from, kb_str, sizeof(p_ptr->died_from));
+		my_strcpy(p->died_from, kb_str, sizeof(p->died_from));
 
 		/* No longer a winner */
-		p_ptr->total_winner = FALSE;
+		p->total_winner = FALSE;
 
 		/* Note death */
-		p_ptr->is_dead = TRUE;
+		p->is_dead = TRUE;
 
 		/* Leaving */
-		p_ptr->leaving = TRUE;
+		p->leaving = TRUE;
 
 		/* Dead */
 		return;
 	}
 
 	/* Hitpoint warning */
-	if (p_ptr->chp < warning)
+	if (p->chp < warning)
 	{
 		/* Hack -- bell on first notice */
 		if (old_chp > warning)
@@ -626,7 +624,7 @@ void take_hit(int dam, const char *kb_str)
  *
  * Returns number of items destroyed.
  */
-int inven_damage(int type, int cperc)
+int inven_damage(struct player *p, int type, int cperc)
 {
 	const struct gf_type *gf_ptr = &gf_table[type];
 
@@ -648,7 +646,7 @@ int inven_damage(int type, int cperc)
 	{
 		if (i >= INVEN_PACK && i < QUIVER_START) continue;
 
-		o_ptr = &p_ptr->inventory[i];
+		o_ptr = &p->inventory[i];
 
 		of_wipe(f);
 		object_flags(o_ptr, f);
@@ -733,11 +731,8 @@ int inven_damage(int type, int cperc)
 			/* Damage instead of destroy */
 			if (damage)
 			{
-				/* Calculate bonuses */
-				p_ptr->update |= (PU_BONUS);
-
-				/* Window stuff */
-				p_ptr->redraw |= (PR_EQUIP);
+				p->update |= (PU_BONUS);
+				p->redraw |= (PR_EQUIP);
 
 				/* Casualty count */
 				amt = o_ptr->number;
@@ -795,7 +790,7 @@ int inven_damage(int type, int cperc)
  *
  * If any armor is damaged (or resists), the player takes less damage.
  */
-static int minus_ac(void)
+static int minus_ac(struct player *p)
 {
 	object_type *o_ptr = NULL;
 
@@ -804,17 +799,18 @@ static int minus_ac(void)
 	char o_name[80];
 
 	/* Avoid crash during monster power calculations */
-	if (!p_ptr->inventory) return FALSE;
+	if (!p->inventory) return FALSE;
 
 	/* Pick a (possibly empty) inventory slot */
 	switch (randint1(6))
 	{
-		case 1: o_ptr = &p_ptr->inventory[INVEN_BODY]; break;
-		case 2: o_ptr = &p_ptr->inventory[INVEN_ARM]; break;
-		case 3: o_ptr = &p_ptr->inventory[INVEN_OUTER]; break;
-		case 4: o_ptr = &p_ptr->inventory[INVEN_HANDS]; break;
-		case 5: o_ptr = &p_ptr->inventory[INVEN_HEAD]; break;
-		case 6: o_ptr = &p_ptr->inventory[INVEN_FEET]; break;
+		case 1: o_ptr = &p->inventory[INVEN_BODY]; break;
+		case 2: o_ptr = &p->inventory[INVEN_ARM]; break;
+		case 3: o_ptr = &p->inventory[INVEN_OUTER]; break;
+		case 4: o_ptr = &p->inventory[INVEN_HANDS]; break;
+		case 5: o_ptr = &p->inventory[INVEN_HEAD]; break;
+		case 6: o_ptr = &p->inventory[INVEN_FEET]; break;
+		default: assert(0);
 	}
 
 	/* Nothing to damage */
@@ -843,11 +839,8 @@ static int minus_ac(void)
 	/* Damage the item */
 	o_ptr->to_a--;
 
-	/* Calculate bonuses */
-	p_ptr->update |= (PU_BONUS);
-
-	/* Window stuff */
-	p_ptr->redraw |= (PR_EQUIP);
+	p->update |= PU_BONUS;
+	p->redraw |= (PR_EQUIP);
 
 	/* Item was damaged */
 	return (TRUE);
@@ -861,7 +854,7 @@ static int minus_ac(void)
  * \param dam_aspect is the calc we want (min, avg, max, random).
  * \param resist is the degree of resistance (-1 = vuln, 3 = immune).
  */
-int adjust_dam(int type, int dam, aspect dam_aspect, int resist)
+int adjust_dam(struct player *p, int type, int dam, aspect dam_aspect, int resist)
 {
 	const struct gf_type *gf_ptr = &gf_table[type];
 	int i, denom;
@@ -870,7 +863,7 @@ int adjust_dam(int type, int dam, aspect dam_aspect, int resist)
 		return 0;
 
 	/* Hack - acid damage is halved by armour, holy orb is halved */
-	if ((type == GF_ACID && minus_ac()) || type == GF_HOLY_ORB)
+	if ((type == GF_ACID && minus_ac(p)) || type == GF_HOLY_ORB)
 		dam = (dam + 1) / 2;
 
 	if (resist == -1) /* vulnerable */
@@ -1200,7 +1193,7 @@ static bool project_f(int who, int r, int y, int x, int dam, int typ, bool obvio
 				cave_set_feat(cave, y, x, FEAT_FLOOR);
 
 				/* Place some gold */
-				place_gold(cave, y, x, p_ptr->depth);
+				place_gold(cave, y, x, p_ptr->depth, ORIGIN_FLOOR);
 			}
 
 			/* Quartz / Magma */
@@ -1685,10 +1678,10 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 	bool obvious)
 {
 	int tmp;
-
 	monster_type *m_ptr;
 	monster_race *r_ptr;
 	monster_lore *l_ptr;
+	u16b flag = 0;
 
 	/* Is the monster "seen"? */
 	bool seen = FALSE;
@@ -1837,18 +1830,21 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		/* Ice -- Cold + Stun */
 		case GF_ICE:
 		{
-			if (seen) obvious = TRUE;
 			if (seen)
 			{
+				obvious = TRUE;
 				rf_on(l_ptr->flags, RF_IM_COLD);
 				rf_on(l_ptr->flags, RF_HURT_COLD);
 			}
-			
-			if(typ == GF_ICE)
-			{
-				do_stun = (randint1(15) + 1) / (r + 1);
+
+			if (typ == GF_ICE) {
+				if (who > 0) {
+					do_stun = (randint1(15) + r) / (r + 1);
+					flag |= MON_TMD_MON_SOURCE;
+				} else
+					do_stun = (randint1(15) + r + p_ptr->lev / 5) / (r + 1);
 			}
-			
+
 			if (rf_has(r_ptr->flags, RF_IM_COLD))
 			{
 				m_note = MON_MSG_RESIST_A_LOT;
@@ -1920,7 +1916,7 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 				/* Acquire knowledge of undead type and nether resistance */
 				rf_on(l_ptr->flags, RF_UNDEAD);
 				rf_on(l_ptr->flags, RF_RES_NETH);
-				
+
 				/* If it isn't undead, acquire extra knowledge */
 				if (!rf_has(r_ptr->flags, RF_UNDEAD))
 				{
@@ -1976,7 +1972,13 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 			if (seen) obvious = TRUE;
 
 			do_poly = TRUE;
-			do_conf = (5 + randint1(11) + r) / (r + 1);
+
+			if (who > 0) {
+				do_conf = (5 + randint1(11) + r) / (r + 1);
+				flag |= MON_TMD_MON_SOURCE;
+			} else
+				do_conf = (5 + randint1(11) + r + p_ptr->lev / 5) / (r + 1);
+
 			if (rsf_has(r_ptr->spell_flags, RSF_BR_CHAO))
 			{
 				/* Learn about breathers through resistance */
@@ -2007,8 +2009,13 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		case GF_SOUND:
 		{
 			if (seen) obvious = TRUE;
-			
-			do_stun = (10 + randint1(15) + r) / (r + 1);
+
+			if (who > 0) {
+				do_stun = (10 + randint1(15) + r) / (r + 1);
+				flag |= MON_TMD_MON_SOURCE;
+			} else
+				do_stun = (10 + randint1(15) + r + p_ptr->lev / 5) / (r + 1);
+
 			if (rsf_has(r_ptr->spell_flags, RSF_BR_SOUN))
 			{
 				/* Learn about breathers through resistance */
@@ -2020,26 +2027,6 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 			break;
 		}
 
-/* Confusion - no longer used for breaths post-3.2 
-		case GF_CONFU:
-		{
-			if (seen) obvious = TRUE;
-			if (seen) rf_on(l_ptr->flags, RF_NO_CONF);
-
-			do_conf = (10 + randint1(15) + r) / (r + 1);
-			if (rsf_has(r_ptr->spell_flags, RSF_BR_CONF))
-			{
-				if (seen) rsf_on(l_ptr->spell_flags, RSF_BR_CONF);
-
-				dam *= 2; dam /= (randint1(6)+6);
-			}
-			else if (rf_has(r_ptr->flags, RF_NO_CONF))
-			{
-				dam /= 2;
-			}
-			break;
-		}
-*/
 		/* Disenchantment */
 		case GF_DISEN:
 		{
@@ -2070,8 +2057,13 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		case GF_FORCE:
 		{
 			if (seen) obvious = TRUE;
-			
-			do_stun = (randint1(15) + r) / (r + 1);
+
+			if (who > 0) {
+				do_stun = (randint1(15) + r) / (r + 1);
+				flag |= MON_TMD_MON_SOURCE;
+			} else
+				do_stun = (randint1(15) + r + p_ptr->lev / 5) / (r + 1);
+
 			if (rsf_has(r_ptr->spell_flags, RSF_BR_WALL))
 			{
 				/* Learn about breathers through resistance */
@@ -2610,7 +2602,7 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		if (!rf_has(r_ptr->flags, RF_UNIQUE))
 		{
 			if (seen) obvious = TRUE;
-			
+
 			/* Saving throws are allowed */
 			if (r_ptr->level > randint1(90) ||
 			    (typ == GF_OLD_POLY && r_ptr->level > randint1(MAX(1, do_poly - 10)) + 10))
@@ -2666,43 +2658,36 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		m_note = MON_MSG_DISAPPEAR;
 
 		/* Teleport */
-		teleport_away(m_idx, do_dist);
+		teleport_away(m_ptr, do_dist);
 
 		/* Hack -- get new location */
 		y = m_ptr->fy;
 		x = m_ptr->fx;
 	}
 
-	/* Handle stunning */
+	/* Handle stunning, confusion, slowing, hasting and fear */
 	else if (do_stun)
 	{
-		int tmp = do_stun;
+		if (m_ptr->m_timed[MON_TMD_STUN])
+			do_stun /= 2;
 
-		bool was_stunned = (m_ptr->m_timed[MON_TMD_STUN] ? TRUE : FALSE);
-
-		if (was_stunned) tmp /= 2;
-
-		obvious = mon_inc_timed(m_idx, MON_TMD_STUN, tmp, MON_TMD_FLG_NOTIFY);
+		obvious = mon_inc_timed(m_idx, MON_TMD_STUN, do_stun, flag | MON_TMD_FLG_NOTIFY);
 	}
 
 	else if (do_conf)
 	{
 		int tmp = damroll(3, (do_conf / 2)) + 1;
 
-		/* Saving throw */
-		if (typ == GF_OLD_CONF && r_ptr->level > randint1(MAX(1, do_conf - 10)) + 10)
-			add_monster_message(m_name, m_idx, MON_MSG_UNAFFECTED, TRUE);
-		else
-			obvious = mon_inc_timed(m_idx, MON_TMD_CONF, tmp, MON_TMD_FLG_NOTIFY);
+		obvious = mon_inc_timed(m_idx, MON_TMD_CONF, tmp, flag | MON_TMD_FLG_NOTIFY);
 	}
 
 	else if (do_slow)
-		obvious = mon_inc_timed(m_idx, MON_TMD_SLOW, do_slow, MON_TMD_FLG_NOTIFY);
+		obvious = mon_inc_timed(m_idx, MON_TMD_SLOW, do_slow, flag | MON_TMD_FLG_NOTIFY);
 	else if (do_haste)
-		obvious = mon_inc_timed(m_idx, MON_TMD_FAST, do_haste, MON_TMD_FLG_NOTIFY);
+		obvious = mon_inc_timed(m_idx, MON_TMD_FAST, do_haste, flag | MON_TMD_FLG_NOTIFY);
 
 	if (do_fear)
-		obvious = mon_inc_timed(m_idx, MON_TMD_FEAR, do_fear, MON_TMD_FLG_NOTIFY);
+		obvious = mon_inc_timed(m_idx, MON_TMD_FEAR, do_fear, flag | MON_TMD_FLG_NOTIFY);
 
 	/* If another monster did the damage, hurt the monster by hand */
 	if (who > 0)
@@ -2726,7 +2711,7 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 			add_monster_message(m_name, m_idx, note_dies, FALSE);
 
 			/* Generate treasure, etc */
-			monster_death(m_idx);
+			monster_death(m_idx, FALSE);
 
 			/* Delete the monster */
 			delete_monster_idx(m_idx);
@@ -2764,7 +2749,8 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		}
 
 		if (do_sleep)
-			obvious = mon_inc_timed(m_idx, MON_TMD_SLEEP, 500, MON_TMD_FLG_NOTIFY);
+			obvious = mon_inc_timed(m_idx, MON_TMD_SLEEP, 500 + p_ptr->lev * 10,
+				flag | MON_TMD_FLG_NOTIFY);
 		else if (mon_take_hit(m_idx, dam, &fear, ""))
 			mon_died = TRUE;
 		else
@@ -2783,7 +2769,7 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 				add_monster_message(m_name, m_idx, MON_MSG_FLEE_IN_TERROR, TRUE);
 		}
 	}
-	
+
 	/* Verify this code XXX XXX XXX */
 
 	/* Update the monster */
@@ -2871,13 +2857,13 @@ static bool project_p(int who, int r, int y, int x, int dam, int typ, bool obvio
 		msg("Gravity warps around you.");
 
 	/* Adjust damage for resistance, immunity or vulnerability, and apply it */
-	dam = adjust_dam(typ, dam, RANDOMISE, check_for_resist(typ,
+	dam = adjust_dam(p_ptr, typ, dam, RANDOMISE, check_for_resist(p_ptr, typ,
 		p_ptr->state.flags, TRUE));
 	if (dam)
-		take_hit(dam, killer);
+		take_hit(p_ptr, dam, killer);
 
 	/* Disturb */
-	disturb(1, 0);
+	disturb(p_ptr, 1, 0);
 
 	/* Return "Anything seen?" */
 	return (obvious);
@@ -3022,7 +3008,7 @@ static bool project_p(int who, int r, int y, int x, int dam, int typ, bool obvio
  * if they were being projected at a more distant destination.  This means
  * that "ball" spells will *always* explode.
  *
- * Note that we must call "handle_stuff()" after affecting terrain features
+ * Note that we must call "handle_stuff(p_ptr)" after affecting terrain features
  * in the blast radius, in case the "illumination" of the grid was changed,
  * and "update_view()" and "update_monsters()" need to be called.
  */
@@ -3135,7 +3121,7 @@ bool project(int who, int rad, int y, int x, int dam, int typ, int flg)
 
 
 	/* Hack -- Handle stuff */
-	handle_stuff();
+	handle_stuff(p_ptr);
 
 	/* Project along the path */
 	for (i = 0; i < path_n; ++i)
@@ -3178,14 +3164,14 @@ bool project(int who, int rad, int y, int x, int dam, int typ, int flg)
 				move_cursor_relative(y, x);
 
 				Term_fresh();
-				if (p_ptr->redraw) redraw_stuff();
+				if (p_ptr->redraw) redraw_stuff(p_ptr);
 
 				Term_xtra(TERM_XTRA_DELAY, msec);
 
 				cave_light_spot(cave, y, x);
 
 				Term_fresh();
-				if (p_ptr->redraw) redraw_stuff();
+				if (p_ptr->redraw) redraw_stuff(p_ptr);
 
 				/* Display "beam" grids */
 				if (flg & (PROJECT_BEAM))
@@ -3297,7 +3283,7 @@ bool project(int who, int rad, int y, int x, int dam, int typ, int flg)
 			Term_fresh();
 
 			/* Flush */
-			if (p_ptr->redraw) redraw_stuff();
+			if (p_ptr->redraw) redraw_stuff(p_ptr);
 
 			/* Delay (efficiently) */
 			if (visual || drawn)
@@ -3330,7 +3316,7 @@ bool project(int who, int rad, int y, int x, int dam, int typ, int flg)
 			Term_fresh();
 
 			/* Flush */
-			if (p_ptr->redraw) redraw_stuff();
+			if (p_ptr->redraw) redraw_stuff(p_ptr);
 		}
 	}
 
@@ -3358,7 +3344,7 @@ bool project(int who, int rad, int y, int x, int dam, int typ, int flg)
 
 
 	/* Update stuff if needed */
-	if (p_ptr->update) update_stuff();
+	if (p_ptr->update) update_stuff(p_ptr);
 
 
 	/* Check objects */

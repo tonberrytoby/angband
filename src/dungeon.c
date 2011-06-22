@@ -56,7 +56,7 @@ void dungeon_change_level(int dlev)
 				if (n == STORE_HOME) continue;
 
 				/* Maintain */
-				store_maint(n);
+				store_maint(&stores[n]);
 			}
 
 			/* Sometimes, shuffle the shop-keepers */
@@ -73,7 +73,7 @@ void dungeon_change_level(int dlev)
 				}
 
 				/* Shuffle it */
-				store_shuffle(n);
+				store_shuffle(&stores[n]);
 			}
 		}
 		daycount = 0;
@@ -1180,7 +1180,7 @@ byte color_flicker[MAX_COLORS][3] =
 	{TERM_DEEP_L_BLUE, TERM_L_BLUE, TERM_BLUE},
 };
 
-byte get_flicker(byte a)
+static byte get_flicker(byte a)
 {
 	switch(flicker % 3)
 	{
@@ -1193,7 +1193,7 @@ byte get_flicker(byte a)
 /*
  * This animates monsters and/or items as necessary.
  */
-void do_animation(void)
+static void do_animation(void)
 {
 	int i;
 
@@ -1508,15 +1508,14 @@ static void process_some_user_pref_files(void)
 {
 	char buf[1024];
 
-
 	/* Process the "user.prf" file */
-	(void)process_pref_file("user.prf", TRUE);
+	(void)process_pref_file("user.prf", TRUE, TRUE);
 
 	/* Get the "PLAYER.prf" filename */
-	(void)strnfmt(buf, sizeof(buf), "%s.prf", op_ptr->base_name);
+	(void)strnfmt(buf, sizeof(buf), "%s.prf", op_ptr->base_name, TRUE);
 
 	/* Process the "PLAYER.prf" file */
-	(void)process_pref_file(buf, TRUE);
+	(void)process_pref_file(buf, TRUE, TRUE);
 }
 
 

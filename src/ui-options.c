@@ -176,7 +176,7 @@ static void option_toggle_menu(const char *name, int page)
 	screen_save();
 
 	clear_from(0);
-	menu_select(m, 0);
+	menu_select(m, 0, FALSE);
 
 	screen_load();
 
@@ -433,7 +433,7 @@ static void ui_keymap_query(const char *title, int row)
 
 static void ui_keymap_create(const char *title, int row)
 {
-	bool done = FALSE, first = TRUE;
+	bool done = FALSE;
 	size_t n = 0;
 
 	struct keypress c;
@@ -444,42 +444,66 @@ static void ui_keymap_create(const char *title, int row)
 	prt("Key: ", 14, 0);
 
 	c = keymap_get_trigger();
+	if (c.code == '$') {
+		c_prt(TERM_L_RED, "The '$' key is reserved.", 16, 2);
+		prt("Press any key to continue.", 18, 0);
+		inkey();
+		return;
+	}
 
 	/* Get an encoded action, with a default response */
 	while (!done) {
-		struct keypress kp;
+		struct keypress kp = {EVT_NONE, 0, 0};
+
+		int color = TERM_WHITE;
+		if (n == 0) color = TERM_YELLOW;
+		if (n == KEYMAP_ACTION_MAX) color = TERM_L_RED;
 
 		keypress_to_text(tmp, sizeof(tmp), keymap_buffer, FALSE);
-		c_prt(first ? TERM_YELLOW : TERM_WHITE,
-				format("Action: %s", tmp), 15, 0);
+		c_prt(color, format("Action: %s", tmp), 15, 0);
+
+		c_prt(TERM_L_BLUE, "  Press '$' when finished.", 17, 0);
+		c_prt(TERM_L_BLUE, "  Use 'CTRL-U' to reset.", 18, 0);
+		c_prt(TERM_L_BLUE, format("(Maximum keymap length is %d keys.)", KEYMAP_ACTION_MAX), 19, 0);
+
+		if (kp.code == '$') {
+			done = TRUE;
+			continue;
+		}
 
 		kp = inkey();
 		switch (kp.code) {
-			case ESCAPE: c.code = 0; done = TRUE; continue;
-			case KC_ENTER: case KC_RETURN: done = TRUE; continue;
-			case KC_BACKSPACE:
+			case KC_DELETE:
+			case KC_BACKSPACE: {
 				if (n > 0) {
 					n -= 1;
-					keymap_buffer[n].type = keymap_buffer[n].code =
-							keymap_buffer[n].mods = 0;
+				    keymap_buffer[n].type = 0;
+					keymap_buffer[n].code = 0;
+					keymap_buffer[n].mods = 0;
 				}
 				break;
-			case KTRL('U'):
+			}
+
+			case KTRL('U'): {
 				memset(keymap_buffer, 0, sizeof keymap_buffer);
 				n = 0;
 				break;
-			default:
-				if (first) {
+			}
+
+			default: {
+				if (n == KEYMAP_ACTION_MAX) continue;
+
+				if (n == 0) {
 					memset(keymap_buffer, 0, sizeof keymap_buffer);
-					first = FALSE;
 				}
 				keymap_buffer[n++] = kp;
 				break;
+			}
 		}
 	}
 
-	if (c.code) {
-		keymap_add(mode, c, keymap_buffer);
+	if (c.code && get_check("Save this keymap? ")) {
+		keymap_add(mode, c, keymap_buffer, TRUE);
 		prt("Keymap added.  Press any key to continue.", 17, 0);
 		inkey();
 	}
@@ -547,7 +571,7 @@ static void do_cmd_keymaps(const char *title, int row)
 	}
 
 	menu_layout(keymap_menu, &loc);
-	menu_select(keymap_menu, 0);
+	menu_select(keymap_menu, 0, FALSE);
 
 	screen_load();
 }
@@ -638,7 +662,7 @@ static void do_cmd_visuals(const char *title, int row)
 	}
 
 	menu_layout(visual_menu, &SCREEN_REGION);
-	menu_select(visual_menu, 0);
+	menu_select(visual_menu, 0, FALSE);
 
 	screen_load();
 }
@@ -763,7 +787,7 @@ static menu_action color_events [] =
 /*
  * Interact with "colors"
  */
-void do_cmd_colors(const char *title, int row)
+static void do_cmd_colors(const char *title, int row)
 {
 	screen_save();
 	clear_from(0);
@@ -779,7 +803,7 @@ void do_cmd_colors(const char *title, int row)
 	}
 
 	menu_layout(color_menu, &SCREEN_REGION);
-	menu_select(color_menu, 0);
+	menu_select(color_menu, 0, FALSE);
 
 	screen_load();
 }
@@ -945,7 +969,7 @@ static void do_cmd_pref_file_hack(long row)
 	if (askfor_aux(ftmp, sizeof ftmp, NULL))
 	{
 		/* Process the given filename */
-		if (process_pref_file(ftmp, FALSE) == FALSE)
+		if (process_pref_file(ftmp, FALSE, TRUE) == FALSE)
 		{
 			/* Mention failure */
 			prt("", 0, 0);
@@ -1109,7 +1133,7 @@ static bool quality_action(menu_type *m, const ui_event *event, int oid)
 
 	window_make(area.col - 2, area.row - 1, area.col + area.width + 2, area.row + area.page_rows);
 
-	evt = menu_select(&menu, 0);
+	evt = menu_select(&menu, 0, TRUE);
 
 	/* Set the new value appropriately */
 	if (evt.type == EVT_SELECT)
@@ -1140,7 +1164,7 @@ static void quality_menu(void *unused, const char *also_unused)
 	menu_layout(&menu, &area);
 
 	/* Select an entry */
-	menu_select(&menu, 0);
+	menu_select(&menu, 0, FALSE);
 
 	/* Load screen */
 	screen_load();
@@ -1163,7 +1187,7 @@ static void squelch_sval_menu_display(menu_type *menu, int oid, bool cursor,
 	object_kind *kind = choice[oid].kind;
 	bool aware = choice[oid].aware;
 
-	byte attr = curs_attrs[aware][0 != cursor];
+	byte attr = curs_attrs[(int)aware][0 != cursor];
 
 	/* Acquire the "name" of object "i" */
 	object_kind_name(buf, sizeof(buf), kind, aware);
@@ -1299,7 +1323,7 @@ static bool sval_menu(int tval, const char *desc)
 	menu = menu_new(MN_SKIN_COLUMNS, &squelch_sval_menu);
 	menu_setpriv(menu, n_choices, choices);
 	menu_layout(menu, &area);
-	menu_select(menu, 0);
+	menu_select(menu, 0, FALSE);
 
 	/* Free memory */
 	FREE(choices);
@@ -1337,9 +1361,8 @@ struct
 {
 	char tag;
 	const char *name;
-	void (*action)(void *unused, const char *also_unused);
-} extra_item_options[] =
-{
+	void (*action)(); /* this is a nasty hack */
+} extra_item_options[] = {
 	{ 'Q', "Quality squelching options", quality_menu },
 	{ '{', "Autoinscription setup", textui_browse_object_knowledge },
 };
@@ -1406,7 +1429,7 @@ static void display_options_item(menu_type *menu, int oid, bool cursor, int row,
 	}
 }
 
-bool handle_options_item(menu_type *menu, const ui_event *event, int oid)
+static bool handle_options_item(menu_type *menu, const ui_event *event, int oid)
 {
 	if (event->type == EVT_SELECT)
 	{
@@ -1418,7 +1441,7 @@ bool handle_options_item(menu_type *menu, const ui_event *event, int oid)
 		{
 			oid = oid - (int)N_ELEMENTS(sval_dependent) - 1;
 			assert((size_t) oid < N_ELEMENTS(extra_item_options));
-			extra_item_options[oid].action(NULL, NULL);
+			extra_item_options[oid].action();
 		}
 
 		return TRUE;
@@ -1453,7 +1476,7 @@ void do_cmd_options_item(const char *title, int row)
 
 	screen_save();
 	clear_from(0);
-	menu_select(&menu, 0);
+	menu_select(&menu, 0, FALSE);
 	screen_load();
 
 	p_ptr->notice |= PN_SQUELCH;
@@ -1509,7 +1532,7 @@ void do_cmd_options(void)
 	clear_from(0);
 
 	menu_layout(option_menu, &SCREEN_REGION);
-	menu_select(option_menu, 0);
+	menu_select(option_menu, 0, FALSE);
 
 	screen_load();
 }

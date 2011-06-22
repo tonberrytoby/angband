@@ -332,6 +332,9 @@ static int VisibleSelect;	/* Hide/unhide window button*/
 static int MoreSelect;		/* Other options button */
 static int QuitSelect;		/* Quit button */
 
+/* For saving the icon for the About Box */
+static SDL_Surface *mratt = NULL;
+
 /* Buttons on the 'More' panel */
 static int MoreOK;			/* Accept changes */
 static int MoreFullscreen;	/* Fullscreen toggle button */
@@ -1321,6 +1324,7 @@ static void TermFocus(int idx)
 static void AboutDraw(sdl_Window *win)
 {
 	SDL_Rect rc;
+	SDL_Rect icon;
 	
 	/* Wow - a different colour! */
 	Uint32 colour = SDL_MapRGB(win->surface->format, 160, 60, 60);
@@ -1328,20 +1332,26 @@ static void AboutDraw(sdl_Window *win)
 	RECT(0, 0, win->width, win->height, &rc);
 	
 	/* Draw a nice box */
-	sdl_DrawBox(win->surface, &rc, colour, 5);
+	SDL_FillRect(win->surface, &win->surface->clip_rect, SDL_MapRGB(win->surface->format, 255,255,255));
+	sdl_DrawBox(win->surface, &win->surface->clip_rect, colour, 5);
+	if (mratt) {
+		RECT((win->width - mratt->w) / 2, 5, mratt->w, mratt->h, &icon);
+		SDL_BlitSurface(mratt, NULL, win->surface, &icon);
+	}
+	sdl_WindowText(win, colour, 20, 150, format("You are playing %s", buildid));
+	sdl_WindowText(win, colour, 20, 160, "See http://www.rephial.org");
 }
 
-	
 static void AboutActivate(sdl_Button *sender)
 {
-	int width = 300;
-	int height = 300;
+	int width = 350;
+	int height = 200;
 	
 	sdl_WindowInit(&PopUp, width, height, AppWin, StatusBar.font.name);
 	PopUp.left = (AppWin->w / 2) - width / 2;
 	PopUp.top = (AppWin->h / 2) - height / 2;
 	PopUp.draw_extra = AboutDraw;
-	
+
 	popped = TRUE;
 }
 
@@ -1491,23 +1501,22 @@ static void AcceptChanges(sdl_Button *sender)
 	if (use_graphics != SelectedGfx)
 	{
 		do_update = TRUE;
-		
 		use_graphics = SelectedGfx;
-		
-		if (use_graphics)
-		{
-			arg_graphics = TRUE;
-			load_gfx();
-		}
-		else
-		{
-			arg_graphics = FALSE;
-			tile_width = 1;
-			tile_height = 1;
-			reset_visuals(TRUE);
-		}
 	}
 	
+	if (use_graphics)
+	{
+		arg_graphics = TRUE;
+		load_gfx();
+	}
+	else
+	{
+		arg_graphics = FALSE;
+		tile_width = 1;
+		tile_height = 1;
+		reset_visuals(TRUE);
+	}
+
 	/* Invalidate all the gfx surfaces */
 	if (do_update)
 	{
@@ -1617,35 +1626,48 @@ static void MoreDraw(sdl_Window *win)
 	
 #ifdef USE_GRAPHICS
 	
-	if (SelectedGfx)
-	{
-	        sdl_WindowText(win, colour, 20, y, format("Tile width is %d.", tile_width));
-		button = sdl_ButtonBankGet(&win->buttons, MoreWidthMinus);
+	button = sdl_ButtonBankGet(&win->buttons, MoreWidthMinus);
+	if (SelectedGfx) {
+		sdl_WindowText(win, colour, 20, y, format("Tile width is %d.", tile_width));
 		sdl_ButtonMove(button, 200, y);
-		
-		button = sdl_ButtonBankGet(&win->buttons, MoreWidthPlus);
-		sdl_ButtonMove(button, 230, y);
-
-		y += 20;
-
-	        sdl_WindowText(win, colour, 20, y, format("Tile height is %d.", tile_height));
-		button = sdl_ButtonBankGet(&win->buttons, MoreHeightMinus);
-		sdl_ButtonMove(button, 200, y);
-		
-		button = sdl_ButtonBankGet(&win->buttons, MoreHeightPlus);
-		sdl_ButtonMove(button, 230, y);
-                
-                y += 20;
+		sdl_ButtonVisible(button, TRUE);
+	} else {
+		sdl_ButtonVisible(button, FALSE);
 	}
-	
-	
-	
+
+	button = sdl_ButtonBankGet(&win->buttons, MoreWidthPlus);
+	if (SelectedGfx) {
+		sdl_ButtonMove(button, 230, y);
+		sdl_ButtonVisible(button, TRUE);
+		y += 20;
+	} else {
+		sdl_ButtonVisible(button, FALSE);
+	}
+
+	button = sdl_ButtonBankGet(&win->buttons, MoreHeightMinus);
+	if (SelectedGfx) {
+		sdl_WindowText(win, colour, 20, y, format("Tile height is %d.", tile_height));
+		sdl_ButtonMove(button, 200, y);
+		sdl_ButtonVisible(button, TRUE);
+	} else {
+		sdl_ButtonVisible(button, FALSE);
+	}
+
+	button = sdl_ButtonBankGet(&win->buttons, MoreHeightPlus);
+	if (SelectedGfx) {
+		sdl_ButtonMove(button, 230, y);
+		sdl_ButtonVisible(button, TRUE);
+		y += 20;
+	} else {
+		sdl_ButtonVisible(button, FALSE);
+	}
+
 	sdl_WindowText(win, colour, 20, y, "Selected Graphics:");
 	sdl_WindowText(win, SDL_MapRGB(win->surface->format, 210, 110, 110),
 				   200, y, GfxDesc[SelectedGfx].name);
-	
+
 	y += 20;
-	
+
 	sdl_WindowText(win, colour, 20, y, "Available Graphics:");
 	
 	for (i = 0; i < GfxModes; i++)
@@ -1656,17 +1678,17 @@ static void MoreDraw(sdl_Window *win)
 		y += 20;
 	}
 #endif	
-	
+
 	button = sdl_ButtonBankGet(&win->buttons, MoreFullscreen);
 	sdl_WindowText(win, colour, 20, y, "Fullscreen is:");
-	
+
 	sdl_ButtonMove(button, 200, y);
 	y+= 20;
-	
+
 	sdl_WindowText(win, colour, 20, y, format("Snap range is %d.", SnapRange));
 	button = sdl_ButtonBankGet(&win->buttons, MoreSnapMinus);
 	sdl_ButtonMove(button, 200, y);
-	
+
 	button = sdl_ButtonBankGet(&win->buttons, MoreSnapPlus);
 	sdl_ButtonMove(button, 230, y);
 }
@@ -3451,6 +3473,7 @@ static void init_sdl_local(void)
 	
 	int i;
 	int h, w;
+	char path[1024];
 	
 	/* Get information about the video hardware */
 	VideoInfo = SDL_GetVideoInfo();
@@ -3506,7 +3529,42 @@ static void init_sdl_local(void)
 	StatusHeight = h + 3;
 	
 	/* Font used for window titles */
-	sdl_FontCreate(&SystemFont, DEFAULT_FONT_FILE, AppWin); 
+	sdl_FontCreate(&SystemFont, DEFAULT_FONT_FILE, AppWin);
+
+	/* Get the icon for display in the About box */
+	path_build(path, sizeof(path), ANGBAND_DIR_XTRA_ICON, "att-128.png");
+	if (file_exists(path))
+		mratt = IMG_Load(path);
+}
+
+/**
+ * Font sorting function
+ *
+ * Orders by width, then height, then face
+ */
+static int cmp_font(const void *f1, const void *f2)
+{
+	const char *font1 = *(const char **)f1;
+	const char *font2 = *(const char **)f2;
+	int height1, height2;
+	int width1, width2;
+	char face1[5], face2[5];
+
+	sscanf(font1, "%dx%d%4s.", &width1, &height1, face1);
+	sscanf(font2, "%dx%d%4s.", &width2, &height2, face2);
+
+	if (width1 < width2)
+		return -1;
+	else if (width1 > width2)
+		return 1;
+	else {
+		if (height1 < height2)
+			return -1;
+		else if (height1 > height2)
+			return 1;
+		else
+			return strcmp(face1, face2);
+	}
 }
 
 /** 
@@ -3547,6 +3605,7 @@ static void init_paths(void)
 		if (num_fonts == MAX_FONTS) break;
 	}
 
+	sort(FontList, num_fonts, sizeof(FontList[0]), cmp_font);
 	/* Done */
 	my_dclose(dir);
 }

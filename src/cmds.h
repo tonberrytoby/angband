@@ -63,14 +63,11 @@ void do_cmd_inven(void);
 void do_cmd_equip(void);
 void textui_cmd_destroy(void);
 void textui_cmd_toggle_ignore(void);
-void textui_obj_wield(object_type *o_ptr, int item);
-void textui_obj_inscribe(object_type *o_ptr, int item);
-void textui_obj_examine(object_type *o_ptr, int item);
+void textui_obj_examine(void);
 void do_cmd_target(void);
 void do_cmd_target_closest(void);
 void do_cmd_look(void);
 void do_cmd_locate(void);
-int cmp_monsters(const void *a, const void *b);
 void do_cmd_query_symbol(void);
 void do_cmd_center_map(void);
 
@@ -133,7 +130,7 @@ void textui_obj_cast(void);
 
 /* ui-knowledge.c */
 extern int big_pad(int col, int row, byte a, byte c);
-extern void textui_browse_object_knowledge(void *obj, const char *name);
+extern void textui_browse_object_knowledge(const char *name, int row);
 extern void textui_knowledge_init(void);
 extern void textui_browse_knowledge(void);
 

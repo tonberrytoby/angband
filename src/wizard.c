@@ -27,6 +27,7 @@
 #include "spells.h"
 #include "target.h"
 #include "wizard.h"
+#include "z-term.h"
 
 
 #ifdef ALLOW_DEBUG
@@ -73,7 +74,7 @@ static void wiz_gf_demo(void)
 
 	screen_save();
 	clear_from(0);
-	menu_select(m, 0);
+	menu_select(m, 0, FALSE);
 	screen_load();
 }
 
@@ -172,6 +173,46 @@ static void prt_binary(const bitflag *flags, int offset, int row, int col, char 
 			Term_putch(col++, row, TERM_WHITE, '-');
 	}
 }
+
+/**
+ * This ugly piece of code exists to figure out what keycodes the user has
+ * been generating.
+ */
+static void do_cmd_keylog(void) {
+	int i;
+	char buf[50];
+	char buf2[12];
+
+	screen_save();
+
+	prt("Previous keypresses (top most recent):", 0, 0);
+
+	for (i = 0; i < KEYLOG_SIZE; i++) {
+		if (i < log_size) {
+			/* find the keypress from our log */
+			int j = (log_i + i) % KEYLOG_SIZE;
+			struct keypress k = keylog[j];
+
+			/* ugh. it would be nice if there was a verion of keypress_to_text
+			 * which took only one keypress. */
+			struct keypress keys[2] = {k, {EVT_NONE, 0}};
+			keypress_to_text(buf2, sizeof(buf2), keys, TRUE);
+
+			/* format this line of output */
+			strnfmt(buf, sizeof(buf), "    %-12s (code=%u mods=%u)", buf2, k.code, k.mods);
+		} else {
+			/* create a blank line of output */
+			strnfmt(buf, sizeof(buf), "%40s", "");
+		}
+
+		prt(buf, i + 1, 0);
+	}
+
+	prt("Press any key to continue.", KEYLOG_SIZE + 1, 0);
+	inkey();
+	screen_load();
+}
+
 
 /*
  * Hack -- Teleport to the target
@@ -514,13 +555,14 @@ static bool wiz_create_item_action(menu_type *m, const ui_event *e, int oid)
 	menu->selections = all_letters;
 
 	object_base_name(buf, sizeof buf, oid, TRUE);
-	menu->title = format("What kind of %s?", buf);
+	menu->title = string_make(format("What kind of %s?", buf));
 
 	menu_setpriv(menu, n_choices, choice);
 	menu_layout(menu, &wiz_create_item_area);
-	ret = menu_select(menu, 0);
+	ret = menu_select(menu, 0, FALSE);
 
 	screen_load();
+	string_free((char *)menu->title);
 
 	return (ret.type == EVT_ESCAPE);
 }
@@ -562,7 +604,7 @@ static void wiz_create_item(void)
 	menu_setpriv(menu, TV_MAX, kb_info);
 	menu_set_filter(menu, tvals, n);
 	menu_layout(menu, &wiz_create_item_area);
-	menu_select(menu, 0);
+	menu_select(menu, 0, FALSE);
 
 	screen_load();
 	
@@ -1759,6 +1801,8 @@ void do_cmd_debug(void)
 			break;
 		}
 
+		case 'L': do_cmd_keylog(); break;
+
 		/* Magic Mapping */
 		case 'm':
 		{
@@ -1850,7 +1894,7 @@ void do_cmd_debug(void)
 			else
 			{
 				struct keypress sym;
-				char *prompt =
+				const char *prompt =
 					"Full recall for [a]ll monsters or [s]pecific monster? ";
 
 				if (!get_com(prompt, &sym)) return;
@@ -1977,7 +2021,7 @@ void do_cmd_debug(void)
 			else
 			{
 				struct keypress sym;
-				char *prompt =
+				const char *prompt =
 					"Wipe recall for [a]ll monsters or [s]pecific monster? ";
 
 				if (!get_com(prompt, &sym)) return;

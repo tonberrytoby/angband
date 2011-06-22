@@ -144,7 +144,6 @@ void init_file_paths(const char *configpath, const char *libpath, const char *da
 	string_free(ANGBAND_DIR_XTRA_FONT);
 	string_free(ANGBAND_DIR_XTRA_GRAF);
 	string_free(ANGBAND_DIR_XTRA_SOUND);
-	string_free(ANGBAND_DIR_XTRA_HELP);
 	string_free(ANGBAND_DIR_XTRA_ICON);
 
 	/*** Prepare the paths ***/
@@ -161,7 +160,6 @@ void init_file_paths(const char *configpath, const char *libpath, const char *da
 	ANGBAND_DIR_XTRA_FONT = string_make(format("%s" PATH_SEP "font", ANGBAND_DIR_XTRA));
 	ANGBAND_DIR_XTRA_GRAF = string_make(format("%s" PATH_SEP "graf", ANGBAND_DIR_XTRA));
 	ANGBAND_DIR_XTRA_SOUND = string_make(format("%s" PATH_SEP "sound", ANGBAND_DIR_XTRA));
-	ANGBAND_DIR_XTRA_HELP = string_make(format("%s" PATH_SEP "help", ANGBAND_DIR_XTRA));
 	ANGBAND_DIR_XTRA_ICON = string_make(format("%s" PATH_SEP "icon", ANGBAND_DIR_XTRA));
 
 #ifdef PRIVATE_USER_PATH
@@ -277,11 +275,17 @@ static errr finish_parse_z(struct parser *p) {
 	return 0;
 }
 
+static void cleanup_z(void)
+{
+	mem_free(z_info);
+}
+
 static struct file_parser z_parser = {
 	"limits",
 	init_parse_z,
 	run_parse_z,
-	finish_parse_z
+	finish_parse_z,
+	cleanup_z
 };
 
 /* Parsing functions for object_base.txt */
@@ -620,7 +624,7 @@ static errr run_parse_k(struct parser *p) {
 }
 
 static errr finish_parse_k(struct parser *p) {
-	struct object_kind *k, *next;
+	struct object_kind *k, *next = NULL;
 
 	k_info = mem_zalloc(z_info->k_max * sizeof(*k));
 	for (k = parser_priv(p); k; k = next) {
@@ -2937,7 +2941,7 @@ bool init_angband(void)
 	event_signal_string(EVENT_INITSTATUS, "Loading basic user pref file...");
 
 	/* Process that file */
-	(void)process_pref_file("pref.prf", FALSE);
+	(void)process_pref_file("pref.prf", FALSE, FALSE);
 
 	/* Done */
 	event_signal_string(EVENT_INITSTATUS, "Initialization complete");
@@ -2987,12 +2991,15 @@ void cleanup_angband(void)
 	FREE(alloc_ego_table);
 	FREE(alloc_race_table);
 
+	event_remove_all_handlers();
+
 	/* Free the stores */
-	if (store) free_stores();
+	if (stores) free_stores();
 
 	/* Free the quest list */
 	FREE(q_list);
 
+	button_free();
 	FREE(p_ptr->inventory);
 
 	/* Free the lore, monster, and object lists */
@@ -3034,6 +3041,7 @@ void cleanup_angband(void)
 	cleanup_parser(&hints_parser);
 	cleanup_parser(&mp_parser);
 	cleanup_parser(&pit_parser);
+	cleanup_parser(&z_parser);
 
 	/* Free the format() buffer */
 	vformat_kill();
@@ -3052,6 +3060,5 @@ void cleanup_angband(void)
 	string_free(ANGBAND_DIR_XTRA_FONT);
 	string_free(ANGBAND_DIR_XTRA_GRAF);
 	string_free(ANGBAND_DIR_XTRA_SOUND);
-	string_free(ANGBAND_DIR_XTRA_HELP);
 	string_free(ANGBAND_DIR_XTRA_ICON);
 }

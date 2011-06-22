@@ -366,9 +366,6 @@ bool prefs_save(const char *path, void (*dump)(ang_file *), const char *title)
 
 /*** Pref file parser ***/
 
-/* Forward declare */
-static struct parser *init_parse_prefs(void);
-
 
 /**
  * Private data for pref file parsing.
@@ -377,6 +374,9 @@ struct prefs_data
 {
 	bool bypass;
 	struct keypress keymap_buffer[KEYMAP_ACTION_MAX];
+	bool user;
+	bool loaded_window_flag[ANGBAND_TERM_MAX];
+	u32b window_flags[ANGBAND_TERM_MAX];
 };
 
 
@@ -392,7 +392,7 @@ static enum parser_error parse_prefs_load(struct parser *p)
 	if (d->bypass) return PARSE_ERROR_NONE;
 
 	file = parser_getstr(p, "file");
-	(void)process_pref_file(file, TRUE);
+	(void)process_pref_file(file, TRUE, d->user);
 
 	return PARSE_ERROR_NONE;
 }
@@ -881,7 +881,7 @@ static enum parser_error parse_prefs_c(struct parser *p)
 	if (tmp[0].type != EVT_KBRD || tmp[1].type != EVT_NONE)
 		return PARSE_ERROR_FIELD_TOO_LONG;
 
-	keymap_add(mode, tmp[0], d->keymap_buffer);
+	keymap_add(mode, tmp[0], d->keymap_buffer, d->user);
 
 	return PARSE_ERROR_NONE;
 }
@@ -952,10 +952,12 @@ static enum parser_error parse_prefs_w(struct parser *p)
 	{
 		int value = parser_getuint(p, "value");
 		if (value)
-			op_ptr->window_flag[window] |= (1L << flag);
+			d->window_flags[window] |= (1L << flag);
 		else
-			op_ptr->window_flag[window] &= ~(1L << flag);
+			d->window_flags[window] &= ~(1L << flag);
 	}
+
+	d->loaded_window_flag[window] = TRUE;
 
 	return PARSE_ERROR_NONE;
 }
@@ -984,10 +986,18 @@ static enum parser_error parse_prefs_y(struct parser *p)
 }
 
 
-static struct parser *init_parse_prefs(void)
+static struct parser *init_parse_prefs(bool user)
 {
 	struct parser *p = parser_new();
-	parser_setpriv(p, mem_zalloc(sizeof(struct prefs_data)));
+	struct prefs_data *pd = mem_zalloc(sizeof *pd);
+	int i;
+
+	parser_setpriv(p, pd);
+	pd->user = user;
+	for (i = 0; i < ANGBAND_TERM_MAX; i++) {
+		pd->loaded_window_flag[i] = FALSE;
+	}
+
 	parser_reg(p, "% str file", parse_prefs_load);
 	parser_reg(p, "? str expr", parse_prefs_expr);
 	parser_reg(p, "K sym tval sym sval int attr int char", parse_prefs_k);
@@ -1011,10 +1021,32 @@ static struct parser *init_parse_prefs(void)
 	return p;
 }
 
+errr finish_parse_prefs(struct parser *p)
+{
+	struct prefs_data *d = parser_priv(p);
+	int i;
+
+	/* Update sub-windows based on the newly read-in prefs.
+	 *
+	 * The op_ptr->window_flag[] array cannot be updated directly during
+	 * parsing since the changes between the existing flags and the new
+	 * are used to set/unset the event handlers that update the windows.
+	 *
+	 * Build a complete set to pass to subwindows_set_flags() by loading
+	 * any that weren't read in by the parser from the existing set.
+	 */
+	for (i = 0; i < ANGBAND_TERM_MAX; i++) {
+		if (!d->loaded_window_flag[i])
+			d->window_flags[i] = op_ptr->window_flag[i];
+	}
+	subwindows_set_flags(d->window_flags, ANGBAND_TERM_MAX);
+
+	return PARSE_ERROR_NONE;
+}
 
 errr process_pref_file_command(const char *s)
 {
-	struct parser *p = init_parse_prefs();
+	struct parser *p = init_parse_prefs(TRUE);
 	errr e = parser_parse(p, s);
 	mem_free(parser_priv(p));
 	parser_destroy(p);
@@ -1035,9 +1067,12 @@ static void print_error(const char *name, struct parser *p) {
  * Process the user pref file with the given name.
  * "quiet" means "don't complain about not finding the file.
  *
+ * 'user' should be TRUE if the pref file loaded is user-specific and not
+ * a game default.
+ *
  * Returns TRUE if everything worked OK, false otherwise
  */
-bool process_pref_file(const char *name, bool quiet)
+bool process_pref_file(const char *name, bool quiet, bool user)
 {
 	char buf[1024];
 
@@ -1062,8 +1097,7 @@ bool process_pref_file(const char *name, bool quiet)
 	{
 		char line[1024];
 
-		p = init_parse_prefs();
-
+		p = init_parse_prefs(user);
 		while (file_getl(f, line, sizeof line))
 		{
 			line_no++;
@@ -1075,6 +1109,7 @@ bool process_pref_file(const char *name, bool quiet)
 				break;
 			}
 		}
+		finish_parse_prefs(p);
 
 		file_close(f);
 		mem_free(parser_priv(p));

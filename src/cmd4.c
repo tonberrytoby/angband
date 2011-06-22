@@ -428,11 +428,11 @@ void do_cmd_note(void) {
 
 	/* Format the note correctly, supporting some cute /me commands */
 	if (strncmp(tmp, "/say ", 5) == 0)
-		snprintf(note, sizeof(note), "-- %s says: \"%s\"", op_ptr->full_name, &tmp[5]);
+		strnfmt(note, sizeof(note), "-- %s says: \"%s\"", op_ptr->full_name, &tmp[5]);
 	else if (strncmp(tmp, "/me", 3) == 0)
-		snprintf(note, sizeof(note), "-- %s%s", op_ptr->full_name, &tmp[3]);
+		strnfmt(note, sizeof(note), "-- %s%s", op_ptr->full_name, &tmp[3]);
 	else
-		snprintf(note, sizeof(note), "-- Note: %s", tmp);
+		strnfmt(note, sizeof(note), "-- Note: %s", tmp);
 
 	/* Display the note (omitting the "-- " prefix) */
 	msg(&note[3]);
@@ -483,9 +483,9 @@ static const char *obj_feeling_text[] =
 	"you have a good feeling...(6)",
 	"you feel a little lucky.(5)",
 	"you are unsure if it will be worthwhile.(4)",
-	"you think it might not be up to much.(3)",
-	"you feel it may be rather dull.(2)",
-	"you feel terribly bored.(1)",
+	"there does not seem to be much of interest here.(3)",
+	"there are only a few scraps of junk lying about.(2)",
+	"it seems to contain nothing but cobwebs.(1)",
 };
 
 /*
@@ -514,7 +514,7 @@ void do_cmd_feeling(void)
 {
 	u16b obj_feeling = cave->feeling / 10;
 	u16b mon_feeling = cave->feeling - (10 * obj_feeling);
-	char *join;
+	const char *join;
 
 	/* Don't show feelings for cold-hearted characters */
 	if (OPT(birth_no_feelings)) return;
@@ -782,7 +782,7 @@ static void do_cmd_save_screen_html(int mode)
 
 	/* Recover current graphics settings */
 	reset_visuals(TRUE);
-	process_pref_file(file_name, TRUE);
+	process_pref_file(file_name, TRUE, FALSE);
 	file_delete(file_name);
 	do_cmd_redraw();
 

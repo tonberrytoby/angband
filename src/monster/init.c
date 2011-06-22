@@ -470,7 +470,7 @@ static errr finish_parse_r(struct parser *p) {
 	return 0;
 }
 
-void cleanup_r(void)
+static void cleanup_r(void)
 {
 	int ridx;
 

@@ -23,6 +23,7 @@
 #include "game-cmd.h"
 #include "keymap.h"
 #include "monster/monster.h"
+#include "textui.h"
 #include "ui-menu.h"
 #include "wizard.h"
 
@@ -43,7 +44,7 @@
  * it simply pushes that command to the game, otherwise the hook 
  * function will be called.
  */
-struct generic_command
+struct cmd_info
 {
 	const char *desc;
 	unsigned char key;
@@ -52,54 +53,13 @@ struct generic_command
 	bool (*prereq)(void);
 };
 
-/* Item selector type (everything required for get_item()) */
-struct item_selector
+static struct cmd_info cmd_item[] =
 {
-	const char *prompt;
-	const char *noop;
-
-	bool (*filter)(const object_type *o_ptr);
-	int mode;
-};
-
-/* Item "action" type */
-struct item_command
-{
-	struct generic_command base;
-	struct item_selector selector;
-
-	void (*action)(object_type *, int);
-	const char *id;
-	bool needs_aim;
-};
-
-
-/* All possible item actions */
-static struct item_command item_actions[] =
-{
-	{ { "Inscribe an object", '{', CMD_INSCRIBE, NULL, NULL },
-	  { "Inscribe which item? ", "You have nothing to inscribe.",
-	    NULL, (USE_EQUIP | USE_INVEN | USE_FLOOR | IS_HARMLESS) },
-	  textui_obj_inscribe, "inscribe", FALSE },
-
-	{ { "Examine an item", 'I', CMD_NULL, NULL, NULL },
-	  { "Examine which item? ", "You have nothing to examine.",
-	    NULL, (USE_EQUIP | USE_INVEN | USE_FLOOR | IS_HARMLESS) },
-	  textui_obj_examine, "examine", FALSE },
-
-	/*** Takeoff/drop/wear ***/
-
-	{ { "Wear/wield an item", 'w', CMD_WIELD, NULL, NULL },
-	  { "Wear/Wield which item? ", "You have nothing you can wear or wield.",
-	    obj_can_wear, (USE_INVEN | USE_FLOOR) },
-	  textui_obj_wield, "wield", FALSE },
-};
-
-
-static struct generic_command cmd_item[] =
-{
+	{ "Inscribe an object", '{', CMD_INSCRIBE, NULL, NULL },
 	{ "Uninscribe an object", '}', CMD_UNINSCRIBE, NULL, NULL },
-	{ "Take/unwield off an item", 't', CMD_TAKEOFF, NULL, NULL },
+	{ "Wear/wield an item", 'w', CMD_WIELD, NULL, NULL },
+	{ "Take off/unwield an item", 't', CMD_TAKEOFF, NULL, NULL },
+	{ "Examine an item", 'I', CMD_NULL, textui_obj_examine },
 	{ "Drop an item", 'd', CMD_DROP, NULL, NULL },
 	{ "Fire your missile weapon", 'f', CMD_FIRE, NULL, player_can_fire },
 	{ "Use a staff", 'u', CMD_USE_STAFF, NULL, NULL },
@@ -109,11 +69,11 @@ static struct generic_command cmd_item[] =
 	{ "Eat some food", 'E', CMD_EAT, NULL, NULL },
 	{ "Quaff a potion", 'q', CMD_QUAFF, NULL, NULL },
 	{ "Read a scroll", 'r', CMD_READ_SCROLL, NULL, player_can_read },
-	{ "Fuel your light source", 'F', CMD_REFILL, NULL, NULL }
+	{ "Fuel your light source", 'F', CMD_REFILL, NULL, NULL },
 };
 
 /* General actions */
-static struct generic_command cmd_action[] =
+static struct cmd_info cmd_action[] =
 {
 	{ "Search for traps/doors",     's', CMD_SEARCH, NULL },
 	{ "Disarm a trap or chest",     'D', CMD_DISARM, NULL },
@@ -135,7 +95,7 @@ static struct generic_command cmd_action[] =
 };
 
 /* Item management commands */
-static struct generic_command cmd_item_manage[] =
+static struct cmd_info cmd_item_manage[] =
 {
 	{ "Display equipment listing", 'e', CMD_NULL, do_cmd_equip },
 	{ "Display inventory listing", 'i', CMD_NULL, do_cmd_inven },
@@ -144,7 +104,7 @@ static struct generic_command cmd_item_manage[] =
 };
 
 /* Information access commands */
-static struct generic_command cmd_info[] =
+static struct cmd_info cmd_info[] =
 {
 	{ "Browse a book", 'b', CMD_BROWSE_SPELL, textui_spell_browse, NULL },
 	{ "Gain new spells", 'G', CMD_STUDY_BOOK, textui_obj_study, player_can_study },
@@ -165,7 +125,7 @@ static struct generic_command cmd_info[] =
 };
 
 /* Utility/assorted commands */
-static struct generic_command cmd_util[] =
+static struct cmd_info cmd_util[] =
 {
 	{ "Interact with options",        '=', CMD_NULL, do_cmd_xxx_options },
 
@@ -179,7 +139,7 @@ static struct generic_command cmd_util[] =
 };
 
 /* Commands that shouldn't be shown to the user */ 
-static struct generic_command cmd_hidden[] =
+static struct cmd_info cmd_hidden[] =
 {
 	{ "Take notes",               ':', CMD_NULL, do_cmd_note },
 	{ "Version info",             'V', CMD_NULL, do_cmd_version },
@@ -205,9 +165,6 @@ static struct generic_command cmd_hidden[] =
 };
 
 
-static struct generic_command cmd_item_use[N_ELEMENTS(item_actions)];
-
-
 
 /*
  * A categorised list of all the command lists.
@@ -215,13 +172,12 @@ static struct generic_command cmd_item_use[N_ELEMENTS(item_actions)];
 typedef struct
 {
 	const char *name;
-	struct generic_command *list;
+	struct cmd_info *list;
 	size_t len;
 } command_list;
 
 static command_list cmds_all[] =
 {
-	{ "Use item",        cmd_item_use,    N_ELEMENTS(item_actions) },
 	{ "Items",           cmd_item,        N_ELEMENTS(cmd_item) },
 	{ "Action commands", cmd_action,      N_ELEMENTS(cmd_action) },
 	{ "Manage items",    cmd_item_manage, N_ELEMENTS(cmd_item_manage) },
@@ -239,7 +195,7 @@ static command_list cmds_all[] =
 static void cmd_sub_entry(menu_type *menu, int oid, bool cursor, int row, int col, int width)
 {
 	byte attr = (cursor ? TERM_L_BLUE : TERM_WHITE);
-	const struct generic_command *commands = menu_priv(menu);
+	const struct cmd_info *commands = menu_priv(menu);
 
 	(void)width;
 
@@ -274,9 +230,9 @@ static bool cmd_menu(command_list *list, void *selection_p)
 	region area = { 23, 4, 37, 13 };
 
 	ui_event evt;
-	struct generic_command *selection = selection_p;
+	struct cmd_info *selection = selection_p;
 
-	/* Set up th emenu */
+	/* Set up the menu */
 	menu_init(&menu, MN_SKIN_SCROLL, &commands_menu);
 	menu_setpriv(&menu, list->len, list->list);
 	menu_layout(&menu, &area);
@@ -286,7 +242,7 @@ static bool cmd_menu(command_list *list, void *selection_p)
 	window_make(21, 3, 62, 17);
 
 	/* Select an entry */
-	evt = menu_select(&menu, 0);
+	evt = menu_select(&menu, 0, TRUE);
 
 	/* Load de screen */
 	screen_load();
@@ -330,7 +286,7 @@ static char textui_action_menu_choose(void)
 {
 	region area = { 21, 5, 37, 6 };
 
-	struct generic_command chosen_command = { 0 };
+	struct cmd_info chosen_command = { 0 };
 
 	if (!command_menu)
 		command_menu = menu_new(MN_SKIN_SCROLL, &command_menu_iter);
@@ -342,7 +298,7 @@ static char textui_action_menu_choose(void)
 	screen_save();
 	window_make(19, 4, 58, 11);
 
-	menu_select(command_menu, 0);
+	menu_select(command_menu, 0, TRUE);
 
 	screen_load();
 
@@ -353,15 +309,7 @@ static char textui_action_menu_choose(void)
 /*** Exported functions ***/
 
 /* List indexed by char */
-struct command
-{
-	struct generic_command *command;
-
-	bool is_object;
-	struct item_command *item;	
-};
-
-static struct command converted_list[UCHAR_MAX+1];
+static struct cmd_info *converted_list[UCHAR_MAX+1];
 
 
 /*
@@ -376,50 +324,34 @@ void cmd_init(void)
 	/* Go through all generic commands */
 	for (j = 0; j < N_ELEMENTS(cmds_all); j++)
 	{
-		struct generic_command *commands = cmds_all[j].list;
+		struct cmd_info *commands = cmds_all[j].list;
 
 		/* Fill everything in */
 		for (i = 0; i < cmds_all[j].len; i++)
-			converted_list[commands[i].key].command = &commands[i];
-	}
-
-	/* Fill in item actions */
-	for (j = 0; j < N_ELEMENTS(item_actions); j++)
-	{
-		struct item_command *act = &item_actions[j];
-		unsigned char key = act->base.key;
-
-		converted_list[key].command = &act->base;
-		converted_list[key].is_object = TRUE;
-		converted_list[key].item = act;
-
-		/* Also update the action menus */
-		memcpy(&cmd_item_use[j], &act->base, sizeof(cmd_item_use[0]));
+			converted_list[commands[i].key] = &commands[i];
 	}
 }
 
-unsigned char cmd_lookup_key(cmd_code cmd)
+unsigned char cmd_lookup_key(cmd_code lookup_cmd)
 {
 	unsigned int i;
-	struct generic_command *command;
 
-	for (i = 0; i < N_ELEMENTS(converted_list); i++)
-	{
-		command = converted_list[i].command;
-		if (command && command->cmd == cmd)
-		{
-			return command->key;
-		}
+	for (i = 0; i < N_ELEMENTS(converted_list); i++) {
+		struct cmd_info *cmd = converted_list[i];
+
+		if (cmd && cmd->cmd == lookup_cmd)
+			return cmd->key;
 	}
+
 	return 0;
 }
 
 cmd_code cmd_lookup(unsigned char key)
 {
-	/* Sanity checking for keys without corresponding commands */
-	if (converted_list[key].command == NULL) return CMD_NULL;
+	if (!converted_list[key])
+		return CMD_NULL;
 
-	return converted_list[key].command->cmd;
+	return converted_list[key]->cmd;
 }
 
 
@@ -667,8 +599,7 @@ static bool key_confirm_command(unsigned char c)
  */
 static bool textui_process_key(struct keypress kp)
 {
-	struct command *cmd;
-	struct generic_command *command;
+	struct cmd_info *cmd;
 
 	/* XXXmacro this needs rewriting */
 	unsigned char c = (unsigned char)kp.code;
@@ -679,40 +610,15 @@ static bool textui_process_key(struct keypress kp)
 	if (c == '\0' || c == ESCAPE || c == ' ' || c == '\a')
 		return TRUE;
 
-	cmd = &converted_list[c];
-	command = cmd->command;
-	if (!command)
-		return FALSE;
+	cmd = converted_list[c];
+	if (!cmd) return FALSE;
 
 	if (key_confirm_command(c) &&
-			(!command->prereq || command->prereq()))
-	{
-		if (cmd->is_object)
-		{
-			struct item_command *act = cmd->item;
-			int item;
-		
-			/* Get item */
-			item_tester_hook = act->selector.filter;
-
-			if (!get_item(&item, act->selector.prompt,
-					act->selector.noop, command->cmd, act->selector.mode))
-				return TRUE;
-
-			/* Execute the item command */
-			act->action(object_from_item_idx(item), item);
-		}
-		else
-		{
-			if (command->hook)
-			{
-				command->hook();
-			}
-			else
-			{
-				cmd_insert_repeated(command->cmd, p_ptr->command_arg);
-			}
-		}
+			(!cmd->prereq || cmd->prereq())) {
+		if (cmd->hook)
+			cmd->hook();
+		else if (cmd->cmd)
+			cmd_insert_repeated(cmd->cmd, p_ptr->command_arg);
 	}
 
 	return TRUE;

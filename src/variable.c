@@ -423,7 +423,7 @@ quest *q_list;
 /*
  * Array[MAX_STORES] of stores
  */
-store_type *store;
+struct store *stores;
 
 /*
  * Flag to override which store is selected if in a knowledge menu
@@ -579,7 +579,6 @@ char *ANGBAND_DIR_XTRA;
 char *ANGBAND_DIR_XTRA_FONT;
 char *ANGBAND_DIR_XTRA_GRAF;
 char *ANGBAND_DIR_XTRA_SOUND;
-char *ANGBAND_DIR_XTRA_HELP;
 char *ANGBAND_DIR_XTRA_ICON;
 
 /*

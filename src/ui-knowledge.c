@@ -19,6 +19,7 @@
 
 #include "angband.h"
 #include "cave.h"
+#include "cmds.h"
 #include "history.h"
 #include "monster/monster.h"
 #include "object/tvalsval.h"
@@ -532,8 +533,8 @@ static void display_knowledge(const char *title, int *obj_list, int o_count,
 			                object_region.col);
 		}
 
-		menu_refresh(inactive_menu);
-		menu_refresh(active_menu);
+		menu_refresh(inactive_menu, FALSE);
+		menu_refresh(active_menu, FALSE);
 
 		handle_stuff(p_ptr);
 
@@ -1209,10 +1210,10 @@ static object_type *find_artifact(struct artifact *artifact)
 
 	for (j = 1; j < (FEAT_SHOP_TAIL - FEAT_SHOP_HEAD + 1); j++)
 	{
-		for (i = 0; i < store[j].stock_size; i++)
+		for (i = 0; i < stores[j].stock_size; i++)
 		{
-			if (store[j].stock[i].artifact == artifact)
-				return &store[j].stock[i];
+			if (stores[j].stock[i].artifact == artifact)
+				return &stores[j].stock[i];
 		}
 	}
 
@@ -1984,7 +1985,7 @@ void textui_browse_knowledge(void)
 	menu_layout(&knowledge_menu, &knowledge_region);
 
 	clear_from(0);
-	menu_select(&knowledge_menu, 0);
+	menu_select(&knowledge_menu, 0, FALSE);
 
 	screen_load();
 }

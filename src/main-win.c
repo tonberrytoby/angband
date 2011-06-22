@@ -3161,19 +3161,7 @@ static void start_screensaver(void)
  */
 static void display_help(const char *filename)
 {
-	char tmp[1024];
-
-	path_build(tmp, sizeof(tmp), ANGBAND_DIR_XTRA_HELP, filename);
-
-	if (file_exists(tmp))
-	{
-		ShellExecute(data[0].w, "open", tmp, NULL, NULL, SW_SHOWNORMAL);
-	}
-	else
-	{
-		plog_fmt("Cannot find help file: %s", tmp);
-		plog("Use the online help files instead.");
-	}
+	plog("Use the online help files instead.");
 }
 
 
@@ -3947,19 +3935,9 @@ static void handle_keydown(WPARAM wParam, LPARAM lParam)
 		case VK_UP: ch = ARROW_UP; break;
 		case VK_DOWN: ch = ARROW_DOWN; break;
 
+		case VK_CLEAR: ch = '5'; kp=TRUE; break;
 		case VK_PAUSE: ch = KC_PAUSE; break;
-/*
-		case VK_NUMPAD0: ch = '0'; kp = TRUE; break;
-		case VK_NUMPAD1: ch = '1'; kp = TRUE; break;
-		case VK_NUMPAD2: ch = '2'; kp = TRUE; break;
-		case VK_NUMPAD3: ch = '3'; kp = TRUE; break;
-		case VK_NUMPAD4: ch = '4'; kp = TRUE; break;
-		case VK_NUMPAD5: ch = '5'; kp = TRUE; break;
-		case VK_NUMPAD6: ch = '6'; kp = TRUE; break;
-		case VK_NUMPAD7: ch = '7'; kp = TRUE; break;
-		case VK_NUMPAD8: ch = '8'; kp = TRUE; break;
-		case VK_NUMPAD9: ch = '9'; kp = TRUE; break;
-*/
+
 		case VK_ADD: ch = '+'; kp = TRUE; break;
 		case VK_SUBTRACT: ch = '-'; kp = TRUE; break;
 		case VK_MULTIPLY: ch = '*'; kp = TRUE; break;
@@ -3972,10 +3950,11 @@ static void handle_keydown(WPARAM wParam, LPARAM lParam)
 	/* see http://source.winehq.org/source/include/dinput.h#L468 */
 
 	if (ch) {
-		int mods =
+		int mods = 
 				(mc && (kp || MODS_INCLUDE_CONTROL(ch)) ? KC_MOD_CONTROL : 0) |
 				(ms && (kp || MODS_INCLUDE_SHIFT(ch)) ? KC_MOD_SHIFT : 0) |
 				(ma ? KC_MOD_ALT : 0) | (kp ? KC_MOD_KEYPAD : 0);
+		printf("ch=%d mods=%d\n", ch, mods);
 		Term_keypress(ch, mods);
 	}
 }
@@ -4063,7 +4042,12 @@ static LRESULT FAR PASCAL AngbandWndProc(HWND hWnd, UINT uMsg,
 
 		case WM_CHAR:
 		{
-			Term_keypress(wParam, 0);
+			// really vicious hack; [Control]Return -> 10 (Return -> 13)
+			if (wParam == 10) {
+				Term_keypress(13, KC_MOD_CONTROL);
+			} else {
+				Term_keypress(wParam, 0);
+			}
 			return 0;
 		}
 
@@ -4753,10 +4737,6 @@ static void hook_quit(const char *str)
 	/* Free strings */
 	string_free(ini_file);
 	string_free(argv0);
-	string_free(ANGBAND_DIR_XTRA_FONT);
-	string_free(ANGBAND_DIR_XTRA_GRAF);
-	string_free(ANGBAND_DIR_XTRA_SOUND);
-	string_free(ANGBAND_DIR_XTRA_HELP);
 
 #ifdef HAS_CLEANUP
 	cleanup_angband();
@@ -4885,16 +4865,6 @@ static void init_stuff(void)
 	/* Hack -- Validate the "news.txt" file */
 	validate_file(path);
 
-
-	/* Build the "font" path */
-	path_build(path, sizeof(path), ANGBAND_DIR_XTRA, "font");
-
-	/* Allocate the path */
-	ANGBAND_DIR_XTRA_FONT = string_make(path);
-
-	/* Validate the "font" directory */
-	validate_dir(ANGBAND_DIR_XTRA_FONT);
-
 	/* Build the filename */
 	path_build(path, sizeof(path), ANGBAND_DIR_XTRA_FONT, DEFAULT_FONT);
 
@@ -4904,12 +4874,6 @@ static void init_stuff(void)
 
 #ifdef USE_GRAPHICS
 
-	/* Build the "graf" path */
-	path_build(path, sizeof(path), ANGBAND_DIR_XTRA, "graf");
-
-	/* Allocate the path */
-	ANGBAND_DIR_XTRA_GRAF = string_make(path);
-
 	/* Validate the "graf" directory */
 	validate_dir(ANGBAND_DIR_XTRA_GRAF);
 
@@ -4918,27 +4882,10 @@ static void init_stuff(void)
 
 #ifdef USE_SOUND
 
-	/* Build the "sound" path */
-	path_build(path, sizeof(path), ANGBAND_DIR_XTRA, "sound");
-
-	/* Allocate the path */
-	ANGBAND_DIR_XTRA_SOUND = string_make(path);
-
 	/* Validate the "sound" directory */
 	validate_dir(ANGBAND_DIR_XTRA_SOUND);
 
 #endif /* USE_SOUND */
-
-	/* Build the "help" path */
-	path_build(path, sizeof(path), ANGBAND_DIR_XTRA, "help");
-
-	/* Allocate the path */
-	ANGBAND_DIR_XTRA_HELP = string_make(path);
-
-#if 0
-	/* Validate the "help" directory */
-	validate_dir(ANGBAND_DIR_XTRA_HELP);
-#endif /* 0 */
 }
 
 

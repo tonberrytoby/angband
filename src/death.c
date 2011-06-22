@@ -107,7 +107,7 @@ static void print_tomb(void)
  */
 static void death_knowledge(void)
 {
-	store_type *st_ptr = &store[STORE_HOME];
+	struct store *st_ptr = &stores[STORE_HOME];
 	object_type *o_ptr;
 
 	int i;
@@ -217,7 +217,7 @@ static void death_info(const char *title, int row)
 {
 	int i, j, k;
 	object_type *o_ptr;
-	store_type *st_ptr = &store[STORE_HOME];
+	struct store *st_ptr = &stores[STORE_HOME];
 
 
 	screen_save();
@@ -442,7 +442,7 @@ void death_screen(void)
 
 	while (!done)
 	{
-		ui_event e = menu_select(death_menu, EVT_KBRD);
+		ui_event e = menu_select(death_menu, EVT_KBRD, FALSE);
 		if (e.type == EVT_KBRD)
 		{
 			if (e.key.code == KTRL('X')) break;

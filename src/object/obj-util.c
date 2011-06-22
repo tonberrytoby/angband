@@ -279,17 +279,11 @@ void reset_visuals(bool load_prefs)
 
 	/* Graphic symbols */
 	if (use_graphics)
-	{
-		/* Process "graf.prf" */
-		process_pref_file("graf.prf", FALSE);
-	}
+		process_pref_file("graf.prf", FALSE, FALSE);
 
 	/* Normal symbols */
 	else
-	{
-		/* Process "font.prf" */
-		process_pref_file("font.prf", FALSE);
-	}
+		process_pref_file("font.prf", FALSE, FALSE);
 
 #ifdef ALLOW_BORG_GRAPHICS
 	/* Initialize the translation table for the borg */
@@ -2179,7 +2173,8 @@ void acquirement(int y1, int x1, int level, int num, bool great)
 		object_wipe(i_ptr);
 
 		/* Make a good (or great) object (if possible) */
-		if (!make_object(cave, i_ptr, level, TRUE, great)) continue;
+		make_object(cave, i_ptr, level, TRUE, great);
+		if (!i_ptr->kind) continue;
 		i_ptr->origin = ORIGIN_ACQUIRE;
 		i_ptr->origin_depth = p_ptr->depth;
 
@@ -3429,12 +3424,8 @@ object_kind *lookup_kind(int tval, int sval)
 {
 	int k;
 
-	/* This function should not get called with tval == 0,
-	 * since gaps in the object list have entries in k_info[]. */
-	assert(tval);
-
 	/* Look for it */
-	for (k = 1; k < z_info->k_max; k++)
+	for (k = 0; k < z_info->k_max; k++)
 	{
 		object_kind *kind = &k_info[k];
 		if (kind->tval == tval && kind->sval == sval)

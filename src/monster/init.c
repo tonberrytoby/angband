@@ -426,6 +426,7 @@ static enum parser_error parse_r_drop_artifact(struct parser *p) {
 
 static enum parser_error parse_r_mimic(struct parser *p) {
 	struct monster_race *r = parser_priv(p);
+	struct monster_mimic *m;
 	int tval, sval;
 	object_kind *kind;
 
@@ -441,7 +442,10 @@ static enum parser_error parse_r_mimic(struct parser *p) {
 	kind = objkind_get(tval, sval);
 	if (!kind)
 		return PARSE_ERROR_GENERIC;
-	r->mimic_kind = kind;
+	m = mem_zalloc(sizeof *m);
+	m->kind = kind;
+	m->next = r->mimic_kinds;
+	r->mimic_kinds = m;
 	return PARSE_ERROR_NONE;
 }
 
@@ -499,12 +503,19 @@ static void cleanup_r(void)
 	for (ridx = 0; ridx < z_info->r_max; ridx++) {
 		struct monster_race *r = &r_info[ridx];
 		struct monster_drop *d, *dn;
+		struct monster_mimic *m, *mn;
 
 		d = r->drops;
 		while (d) {
 			dn = d->next;
 			mem_free(d);
 			d = dn;
+		}
+		m = r->mimic_kinds;
+		while (m) {
+			mn = m->next;
+			mem_free(m);
+			m = mn;
 		}
 		string_free(r->text);
 		string_free(r->name);

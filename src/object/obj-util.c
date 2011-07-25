@@ -22,12 +22,13 @@
 #include "game-cmd.h"
 #include "generate.h"
 #include "history.h"
+#include "monster/mon-make.h"
 #include "object/inventory.h"
+#include "object/tvalsval.h"
 #include "prefs.h"
+#include "randname.h"
 #include "spells.h"
 #include "squelch.h"
-#include "randname.h"
-#include "object/tvalsval.h"
 #include "z-queue.h"
 
 struct object *o_list;
@@ -1014,6 +1015,22 @@ static void compact_objects_aux(int i1, int i2)
 		{
 			/* Repair */
 			cave->o_idx[y][x] = i2;
+		}
+
+		/* Mimic */
+		if (o_ptr->mimicking_m_idx)
+		{
+			monster_type *m_ptr;
+
+			/* Get the monster */
+			m_ptr = cave_monster(cave, o_ptr->mimicking_m_idx);
+
+			/* Repair monster */
+			if (m_ptr->mimicked_o_idx == i1)
+			{
+				/* Repair */
+				m_ptr->mimicked_o_idx = i2;
+			}
 		}
 	}
 
